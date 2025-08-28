@@ -1,4 +1,4 @@
---// Explorer GUI Library
+--// Fixed Explorer GUI Library
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local player = Players.LocalPlayer
@@ -7,6 +7,7 @@ local player = Players.LocalPlayer
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Parent = player:WaitForChild("PlayerGui")
 ScreenGui.IgnoreGuiInset = true
+ScreenGui.Name = "ExplorerGui"
 
 local MainFrame = Instance.new("Frame")
 MainFrame.Size = UDim2.new(0, 300, 0, 450)
@@ -63,6 +64,7 @@ InstanceList.Parent = MainFrame
 
 -- Buttons
 local RefreshBtn = Instance.new("TextButton")
+RefreshBtn.Name = "RefreshBtn"
 RefreshBtn.Text = "Refresh"
 RefreshBtn.Size = UDim2.new(0.45, -5, 0, 30)
 RefreshBtn.Position = UDim2.new(0, 5, 1, -35)
@@ -77,6 +79,7 @@ RefreshCorner.CornerRadius = UDim.new(0, 6)
 RefreshCorner.Parent = RefreshBtn
 
 local OpenClose = Instance.new("TextButton")
+OpenClose.Name = "OpenCloseBtn"
 OpenClose.Text = "Close"
 OpenClose.Size = UDim2.new(0, 80, 0, 35)
 OpenClose.Position = UDim2.new(0.02, 0, 0.1, 0)
@@ -97,9 +100,10 @@ local yOffset = 0
 
 -- Function to Add Instance to Tree
 local function addInstanceToTree(instance, depth, parentFrame)
+	if not instance then return end -- Cegah error jika instance nil
 	local indent = depth * 20
 	local hasChildren = #instance:GetChildren() > 0
-	local instanceName = instance.Name .. " (" .. instance.ClassName .. ")"
+	local instanceName = instance.Name ~= "" and instance.Name or instance.ClassName
 	
 	local InstanceFrame = Instance.new("Frame")
 	InstanceFrame.Size = UDim2.new(1, -10, 0, 25)
@@ -122,7 +126,7 @@ local function addInstanceToTree(instance, depth, parentFrame)
 	InstanceLabel.Position = UDim2.new(0, indent + 25, 0, 2)
 	InstanceLabel.BackgroundColor3 = Color3.fromRGB(60, 60, 70)
 	InstanceLabel.TextColor3 = Color3.fromRGB(220, 220, 220)
-	InstanceLabel.Text = instanceName
+	InstanceLabel.Text = instanceName .. " (" .. instance.ClassName .. ")"
 	InstanceLabel.TextXAlignment = Enum.TextXAlignment.Left
 	InstanceLabel.Font = Enum.Font.Gotham
 	InstanceLabel.TextSize = 14
@@ -152,10 +156,9 @@ local function addInstanceToTree(instance, depth, parentFrame)
 		end
 	end)
 	
-	-- Instance Selection (Show Properties)
+	-- Instance Selection
 	InstanceLabel.MouseButton1Click:Connect(function()
-		print("Selected:", instanceName)
-		-- Bisa ditambahkan logika untuk menampilkan properti di GUI lain
+		print("Selected: " .. instanceName .. " (" .. instance.ClassName .. ")")
 	end)
 	
 	if expanded[instance] then
@@ -167,21 +170,25 @@ end
 
 -- Refresh Instance List
 local function refreshInstanceList()
+	-- Clear existing list
 	for _, item in ipairs(instanceCache) do
-		item.Frame:Destroy()
+		if item.Frame then
+			item.Frame:Destroy()
+		end
 	end
 	instanceCache = {}
 	yOffset = 0
 	
+	-- List of services to explore
 	local services = {
 		game:GetService("Workspace"),
 		game:GetService("ReplicatedStorage"),
 		game:GetService("Players"),
 		game:GetService("Lighting"),
 		game:GetService("StarterGui"),
-		-- ServerStorage mungkin tidak dapat diakses dari LocalScript
 	}
 	
+	-- Apply search filter
 	local searchText = SearchBar.Text:lower()
 	for _, service in ipairs(services) do
 		if searchText == "" or service.Name:lower():find(searchText) then
@@ -196,10 +203,14 @@ end
 refreshInstanceList()
 
 -- Search Filter
-SearchBar:GetPropertyChangedSignal("Text"):Connect(refreshInstanceList)
+SearchBar:GetPropertyChangedSignal("Text"):Connect(function()
+	refreshInstanceList()
+end)
 
 -- Refresh Button
-RefreshBtn.MouseButton1Click:Connect(refreshInstanceList)
+RefreshBtn.MouseButton1Click:Connect(function()
+	refreshInstanceList()
+end)
 
 -- Open/Close Logic
 local guiVisible = true
@@ -209,7 +220,7 @@ OpenClose.MouseButton1Click:Connect(function()
 	OpenClose.Text = guiVisible and "Close" or "Open"
 end)
 
--- Hover Effects
+-- Hover Effects for Buttons
 local function addHoverEffect(button)
 	button.MouseEnter:Connect(function()
 		TweenService:Create(button, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(button.BackgroundColor3.r * 255 * 1.2, button.BackgroundColor3.g * 255 * 1.2, button.BackgroundColor3.b * 255 * 1.2)}):Play()
