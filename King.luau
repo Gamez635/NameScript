@@ -93,9 +93,9 @@ tab.newButton("Dex API", "Hi!", function()
     loadstring(game:HttpGet("https://raw.githubusercontent.com/UltraFEmotes/im-bored/refs/heads/main/dexnoapi.lua"))()
 end)
 
-tab.newLabel("")
-tab.newButton("", "Hi!", function()
-    print('Hello!')
+tab.newLabel("Menu - Nameless")
+tab.newButton("Nameless", "Hi!", function()
+    loadstring(game:HttpGet("https://raw.githubusercontent.com/ltseverydayyou/Nameless-Admin/main/Source.lua"))()
 end)
 
 tab.newLabel("")
