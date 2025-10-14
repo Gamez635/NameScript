@@ -1,0 +1,563 @@
+--// Simple GUI Library with Auto Block V3 (Super Smart) and WalkSpeed
+-- Created for Ultimate Anti-Fall and Speed Customization with Fixed Scrolling
+
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local CoreGui = game:GetService("CoreGui")
+local RunService = game:GetService("RunService")
+local LocalPlayer = Players.LocalPlayer
+
+-- GUI Initialization
+local gui = Instance.new("ScreenGui")
+gui.Name = "SimpleGuiLibraryV3"
+gui.Parent = CoreGui
+gui.ResetOnSpawn = false
+gui.IgnoreGuiInset = false
+
+-- Drag Handler
+local function makeDraggable(frame)
+    local dragging, dragInput, dragStart, startPos
+    frame.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            dragStart = input.Position
+            startPos = frame.Position
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    dragging = false
+                end
+            end)
+        end
+    end)
+    frame.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+            dragInput = input
+        end
+    end)
+    UserInputService.InputChanged:Connect(function(input)
+        if input == dragInput and dragging then
+            local delta = input.Position - dragStart
+            frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        end
+    end)
+end
+
+-- Main Frame
+local main = Instance.new("Frame")
+main.Size = UDim2.new(0, 100, 0, 100)
+main.Position = UDim2.new(0.5, -50, 0.5, -50)
+main.BackgroundColor3 = Color3.fromRGB(20, 140, 255)
+main.BorderSizePixel = 0
+main.Visible = true
+main.Parent = gui
+makeDraggable(main)
+
+local corner = Instance.new("UICorner", main)
+corner.CornerRadius = UDim.new(0, 12)
+local stroke = Instance.new("UIStroke", main)
+stroke.Color = Color3.fromRGB(255, 255, 255)
+stroke.Thickness = 1
+stroke.Transparency = 0.8
+
+-- Open/Close Button
+local openCloseBtn = Instance.new("TextButton")
+openCloseBtn.Size = UDim2.new(0, 30, 0, 30)
+openCloseBtn.Position = UDim2.new(0, 10, 0, 50)
+openCloseBtn.Text = "❌"
+openCloseBtn.BackgroundColor3 = Color3.fromRGB(255, 80, 80)
+openCloseBtn.TextColor3 = Color3.new(1, 1, 1)
+openCloseBtn.Font = Enum.Font.GothamBold
+openCloseBtn.TextSize = 16
+openCloseBtn.TextScaled = false
+openCloseBtn.Visible = true
+openCloseBtn.Parent = gui
+Instance.new("UICorner", openCloseBtn).CornerRadius = UDim.new(0, 12)
+local openCloseStroke = Instance.new("UIStroke", openCloseBtn)
+openCloseStroke.Color = Color3.fromRGB(255, 255, 255)
+openCloseStroke.Thickness = 1
+openCloseStroke.Transparency = 0.9
+
+-- Title
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, 0, 0, 20)
+title.Position = UDim2.new(0, 0, 0, 5)
+title.BackgroundTransparency = 1
+title.Text = "🌟 Auto Block V3"
+title.TextColor3 = Color3.new(1, 1, 1)
+title.Font = Enum.Font.GothamBold
+title.TextSize = 12
+title.TextScaled = false
+title.Parent = main
+
+-- Scrolling Frame
+local contentFrame = Instance.new("ScrollingFrame")
+contentFrame.Size = UDim2.new(0.9, 0, 0, 75)
+contentFrame.Position = UDim2.new(0.05, 0, 0, 20)
+contentFrame.BackgroundTransparency = 1
+contentFrame.ScrollBarThickness = 6
+contentFrame.ScrollBarImageColor3 = Color3.fromRGB(255, 160, 80)
+contentFrame.CanvasSize = UDim2.new(0, 0, 0, 270) -- 14 components * 15px + 13 * 5px padding + margin
+contentFrame.ScrollingEnabled = true
+contentFrame.ScrollingDirection = Enum.ScrollingDirection.Y
+contentFrame.AutomaticCanvasSize = Enum.AutomaticSize.Y
+contentFrame.CanvasPosition = Vector2.new(0, 0)
+contentFrame.Parent = main
+
+-- UIListLayout for ScrollingFrame
+local listLayout = Instance.new("UIListLayout")
+listLayout.SortOrder = Enum.SortOrder.LayoutOrder
+listLayout.Padding = UDim.new(0, 5)
+listLayout.Parent = contentFrame
+
+-- Component Creation Function
+local function createButton(name, color)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(1, -10, 0, 15)
+    btn.BackgroundColor3 = color
+    btn.TextColor3 = Color3.new(1, 1, 1)
+    btn.Font = Enum.Font.GothamBold
+    btn.TextSize = 10
+    btn.TextScaled = false
+    btn.Text = name
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 8)
+    local stroke = Instance.new("UIStroke", btn)
+    stroke.Color = Color3.fromRGB(255, 255, 255)
+    stroke.Thickness = 1
+    stroke.Transparency = 0.9
+    btn.Parent = contentFrame
+    return btn
+end
+
+local function createTextBox(placeholder, color, defaultText)
+    local box = Instance.new("TextBox")
+    box.Size = UDim2.new(1, -10, 0, 15)
+    box.BackgroundColor3 = color
+    box.TextColor3 = Color3.new(1, 1, 1)
+    box.Font = Enum.Font.Gotham
+    box.TextSize = 10
+    box.PlaceholderText = placeholder
+    box.Text = defaultText
+    Instance.new("UICorner", box).CornerRadius = UDim.new(0, 8)
+    local stroke = Instance.new("UIStroke", box)
+    stroke.Color = Color3.fromRGB(255, 255, 255)
+    stroke.Thickness = 1
+    stroke.Transparency = 0.9
+    box.Parent = contentFrame
+    return box
+end
+
+-- GUI Components
+local autoBlockBtn = createButton("🛡️ Auto Block: Off", Color3.fromRGB(50, 160, 255))
+local geniusBtn = createButton("🧠 Genius: On", Color3.fromRGB(60, 170, 255))
+local brilliantBtn = createButton("✨ Brilliant: On", Color3.fromRGB(70, 180, 255))
+local extremelySmartBtn = createButton("🛡️ Extremely Smart: On", Color3.fromRGB(80, 190, 255))
+local reallySmartBtn = createButton("🎨 Really Smart: On", Color3.fromRGB(90, 200, 255))
+local superSmartBtn = createButton("📏 Super Smart: On", Color3.fromRGB(100, 210, 255))
+local smarterBtn = createButton("🎨 Smarter: On", Color3.fromRGB(110, 220, 255))
+local muchSmarterBtn = createButton("🔄 Much Smarter: On", Color3.fromRGB(120, 230, 255))
+local aLotSmarterBtn = createButton("🛡️ A Lot Smarter: On", Color3.fromRGB(130, 240, 255))
+local waySmarterBtn = createButton("🛡️ Way Smarter: On", Color3.fromRGB(140, 245, 255))
+local moreIntelligentBtn = createButton("🛡️ More Intelligent: On", Color3.fromRGB(150, 250, 255))
+local brightBtn = createButton("🎨 Bright: On", Color3.fromRGB(160, 255, 255))
+local sharpBtn = createButton("🛡️ Sharp: On", Color3.fromRGB(170, 255, 255))
+local quickThinkerBtn = createButton("⚡ Quick Thinker: On", Color3.fromRGB(180, 255, 255))
+local sizeBox = createTextBox("📏 Block Size (2-10)", Color3.fromRGB(190, 255, 255), "4")
+local speedBox = createTextBox("🏃 Speed (8-100)", Color3.fromRGB(200, 255, 255), "16")
+local statusLabel = Instance.new("TextLabel")
+statusLabel.Size = UDim2.new(1, -10, 0, 15)
+statusLabel.BackgroundTransparency = 1
+statusLabel.TextColor3 = Color3.fromRGB(200, 220, 255)
+statusLabel.Font = Enum.Font.GothamSemibold
+statusLabel.TextSize = 10
+statusLabel.TextScaled = false
+statusLabel.Text = "🛡️ Off | 📏 Auto 4x4 | 🎨 Auto"
+statusLabel.Parent = contentFrame
+
+-- State variables
+local isAutoBlock = false
+local isGenius = true
+local isBrilliant = true
+local isExtremelySmart = true
+local isReallySmart = true
+local isSuperSmart = true
+local isSmarter = true
+local isMuchSmarter = true
+local isALotSmarter = true
+local isWaySmarter = true
+local isMoreIntelligent = true
+local isBright = true
+local isSharp = true
+local isQuickThinker = true
+local isAutoSize = true
+local isAutoColor = true
+local isPersistent = false
+local currentBlock = nil
+local blockSize = 4
+local blockColor = Color3.fromRGB(255, 120, 50)
+local colorOptions = {
+    {name = "Orange", color = Color3.fromRGB(255, 120, 50)},
+    {name = "Blue", color = Color3.fromRGB(50, 160, 255)},
+    {name = "Green", color = Color3.fromRGB(80, 200, 80)}
+}
+local currentColorIndex = 1
+local originalWalkSpeed = 16
+local customWalkSpeed = 16
+local autoBlockConnection
+local lastPosition = nil
+
+-- Function to reset title
+local function resetTitle()
+    task.wait(2)
+    title.Text = "🌟 Auto Block V3"
+end
+
+-- Function to update Status Label
+local function updateStatusLabel()
+    statusLabel.Text = string.format("🛡️ %s | 📏 %s %dx%d | 🎨 %s | 🔄 %s",
+        isAutoBlock and "On" or "Off",
+        isAutoSize and "Auto" or "Manual",
+        blockSize, blockSize,
+        isAutoColor and "Auto" or colorOptions[currentColorIndex].name,
+        isPersistent and "Persist" or "Non-Persist")
+end
+
+-- Auto Block V3 Logic
+local function updateAutoBlock()
+    if isAutoBlock and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        local humanoid = LocalPlayer.Character.Humanoid
+        local hrp = LocalPlayer.Character.HumanoidRootPart
+        local moveDir = humanoid.MoveDirection
+        local isMovingOrJumping = moveDir.Magnitude > 0 or humanoid.Jump
+
+        -- Genius: Environment Analysis
+        local platformSize = 4
+        local autoPersistent = false
+        local raycastParams = RaycastParams.new()
+        raycastParams.FilterDescendantsInstances = {LocalPlayer.Character}
+        raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
+        local leftRay = workspace:Raycast(hrp.Position, Vector3.new(-5, -10, 0), raycastParams)
+        local rightRay = workspace:Raycast(hrp.Position, Vector3.new(5, -10, 0), raycastParams)
+        local material = Enum.Material.Air
+        if leftRay and rightRay then
+            platformSize = math.abs(leftRay.Position.X - rightRay.Position.X)
+            if isMuchSmarter and platformSize < 4 then
+                autoPersistent = true
+            end
+        end
+
+        -- Update block if moving, jumping, persistent, or on small platform
+        if isMovingOrJumping or isPersistent or autoPersistent then
+            -- Raycast down
+            local rayOrigin = hrp.Position
+            local rayDirection = Vector3.new(0, -10, 0)
+            local raycastResult = workspace:Raycast(rayOrigin, rayDirection, raycastParams)
+            if raycastResult then
+                material = raycastResult.Material
+            end
+
+            -- Sharp: Edge Detection
+            local forwardRay = workspace:Raycast(rayOrigin, moveDir * 5, raycastParams)
+            local isVoidAhead = not forwardRay and isSharp
+
+            -- Way Smarter: Void Protection
+            local isExtremeVoid = false
+            if isWaySmarter then
+                local deepRay = workspace:Raycast(rayOrigin, Vector3.new(0, -20, 0), raycastParams)
+                isExtremeVoid = not deepRay
+            end
+
+            -- Determine block position
+            local blockPosition
+            if raycastResult then
+                blockPosition = raycastResult.Position + Vector3.new(0, -0.5, 0)
+            else
+                blockPosition = hrp.Position - Vector3.new(0, 3, 0)
+                if isWaySmarter and isExtremeVoid then
+                    title.Text = "🛡️ Extreme Void Protection!"
+                    task.spawn(resetTitle)
+                else
+                    title.Text = "🛡️ Void Detected!"
+                    task.spawn(resetTitle)
+                end
+            end
+
+            -- Brilliant: Jump Prediction
+            if isBrilliant and humanoid.Jump then
+                local jumpDistance = humanoid.JumpPower / 10
+                blockPosition = blockPosition + moveDir * math.min(5, jumpDistance)
+                title.Text = "🛡️ Jump Predicted!"
+                task.spawn(resetTitle)
+            end
+
+            -- Extremely Smart: Obstacle Avoidance
+            if isExtremelySmart then
+                local sideRay = workspace:Raycast(blockPosition, Vector3.new(2, 0, 0), raycastParams)
+                if sideRay then
+                    blockPosition = blockPosition + Vector3.new(-2, 0, 0)
+                    title.Text = "🛡️ Obstacle Avoided!"
+                    task.spawn(resetTitle)
+                end
+            end
+
+            -- A Lot Smarter: Path Smoothing
+            if isALotSmarter and lastPosition then
+                blockPosition = lastPosition:Lerp(blockPosition, 0.5)
+                title.Text = "🛡️ Smooth Path!"
+                task.spawn(resetTitle)
+            end
+            lastPosition = blockPosition
+
+            -- Super Smart: Auto-Size
+            local targetSize = blockSize
+            if isSuperSmart and isAutoSize then
+                if isExtremeVoid then
+                    targetSize = 10
+                elseif isVoidAhead or humanoid.Jump then
+                    targetSize = 8
+                elseif platformSize < 4 then
+                    targetSize = 2
+                else
+                    targetSize = 4
+                end
+                if targetSize ~= blockSize then
+                    blockSize = targetSize
+                    title.Text = "📏 Auto-Size: " .. targetSize .. "x" .. targetSize .. "!"
+                    task.spawn(resetTitle)
+                end
+            end
+
+            -- Smarter: Auto-Color
+            local targetColor = blockColor
+            if isSmarter and isAutoColor and raycastResult then
+                if material == Enum.Material.Plastic or material == Enum.Material.Metal then
+                    targetColor = Color3.fromRGB(50, 160, 255)
+                elseif material == Enum.Material.Grass or material == Enum.Material.Sand then
+                    targetColor = Color3.fromRGB(80, 200, 80)
+                else
+                    targetColor = Color3.fromRGB(255, 120, 50)
+                end
+                if targetColor ~= blockColor then
+                    blockColor = targetColor
+                    title.Text = "🎨 Auto-Color!"
+                    task.spawn(resetTitle)
+                end
+            end
+
+            -- Really Smart: Dynamic Transparency
+            local targetTransparency = 0.5
+            if isReallySmart then
+                targetTransparency = (isVoidAhead or isExtremeVoid) and 0.2 or 0.5
+                title.Text = "🎨 Transparency Adjusted!"
+                task.spawn(resetTitle)
+            end
+
+            -- Bright: Visual Feedback
+            local blink = false
+            if isBright and (isVoidAhead or isExtremeVoid) then
+                blink = true
+                title.Text = "🎨 Visual Alert!"
+                task.spawn(resetTitle)
+            end
+
+            -- More Intelligent: Speed Synchronization
+            if isMoreIntelligent and isMovingOrJumping and moveDir.Magnitude > 0 then
+                blockPosition = blockPosition + moveDir * (customWalkSpeed / 16)
+                title.Text = "🛡️ Speed Sync!"
+                task.spawn(resetTitle)
+            end
+
+            -- Quick Thinker: Rapid Response
+            local updateFrequency = isQuickThinker and platformSize < 4 and 0.05 or 0.1
+
+            -- Update or create block
+            if not currentBlock then
+                currentBlock = Instance.new("Part")
+                currentBlock.Anchored = true
+                currentBlock.CanCollide = true
+                currentBlock.Parent = game.Workspace
+            end
+            currentBlock.Size = Vector3.new(blockSize, 1, blockSize)
+            currentBlock.Color = blockColor
+            currentBlock.Transparency = blink and (math.sin(tick() * 5) * 0.2 + 0.5) or targetTransparency
+            currentBlock.Position = Vector3.new(blockPosition.X, blockPosition.Y, blockPosition.Z)
+        elseif currentBlock and not (isPersistent or autoPersistent) then
+            currentBlock:Destroy()
+            currentBlock = nil
+        end
+    elseif currentBlock then
+        currentBlock:Destroy()
+        currentBlock = nil
+    end
+end
+
+-- Logic for Open/Close Button
+local isOpen = true
+openCloseBtn.MouseButton1Click:Connect(function()
+    isOpen = not isOpen
+    main.Visible = isOpen
+    openCloseBtn.Text = isOpen and "❌" or "➕"
+    openCloseBtn.BackgroundColor3 = isOpen and Color3.fromRGB(255, 80, 80) or Color3.fromRGB(80, 200, 80)
+    if isOpen then
+        contentFrame.CanvasPosition = Vector2.new(0, 0) -- Reset to top
+    end
+    if not isOpen and isAutoBlock then
+        isAutoBlock = false
+        autoBlockBtn.Text = "🛡️ Auto Block: Off"
+        updateStatusLabel()
+        if autoBlockConnection then
+            autoBlockConnection:Disconnect()
+            autoBlockConnection = nil
+        end
+        if currentBlock then
+            currentBlock:Destroy()
+            currentBlock = nil
+        end
+    end
+    if not isOpen then
+        local character = LocalPlayer.Character
+        local humanoid = character and character:FindFirstChild("Humanoid")
+        if humanoid then
+            humanoid.WalkSpeed = originalWalkSpeed
+        end
+    end
+end)
+
+-- Logic for Auto Block Button
+autoBlockBtn.MouseButton1Click:Connect(function()
+    isAutoBlock = not isAutoBlock
+    autoBlockBtn.Text = isAutoBlock and "🛡️ Auto Block: On" or "🛡️ Auto Block: Off"
+    updateStatusLabel()
+    title.Text = isAutoBlock and "🛡️ Auto Block On!" or "🛡️ Auto Block Off!"
+    task.spawn(resetTitle)
+    if isAutoBlock then
+        if not autoBlockConnection then
+            autoBlockConnection = RunService.Heartbeat:Connect(updateAutoBlock)
+        end
+    else
+        if autoBlockConnection then
+            autoBlockConnection:Disconnect()
+            autoBlockConnection = nil
+        end
+        if currentBlock then
+            currentBlock:Destroy()
+            currentBlock = nil
+        end
+    end
+end)
+
+-- Logic for Feature Toggles
+local function createToggleHandler(btn, stateVar, name, enableText, disableText)
+    return function()
+        _G[stateVar] = not _G[stateVar]
+        btn.Text = _G[stateVar] and enableText or disableText
+        title.Text = _G[stateVar] and (name .. " On!") or (name .. " Off!")
+        task.spawn(resetTitle)
+    end
+end
+
+geniusBtn.MouseButton1Click:Connect(createToggleHandler(geniusBtn, "isGenius", "🧠 Genius", "🧠 Genius: On", "🧠 Genius: Off"))
+brilliantBtn.MouseButton1Click:Connect(createToggleHandler(brilliantBtn, "isBrilliant", "✨ Brilliant", "✨ Brilliant: On", "✨ Brilliant: Off"))
+extremelySmartBtn.MouseButton1Click:Connect(createToggleHandler(extremelySmartBtn, "isExtremelySmart", "🛡️ Extremely Smart", "🛡️ Extremely Smart: On", "🛡️ Extremely Smart: Off"))
+reallySmartBtn.MouseButton1Click:Connect(createToggleHandler(reallySmartBtn, "isReallySmart", "🎨 Really Smart", "🎨 Really Smart: On", "🎨 Really Smart: Off"))
+superSmartBtn.MouseButton1Click:Connect(createToggleHandler(superSmartBtn, "isSuperSmart", "📏 Super Smart", "📏 Super Smart: On", "📏 Super Smart: Off"))
+smarterBtn.MouseButton1Click:Connect(createToggleHandler(smarterBtn, "isSmarter", "🎨 Smarter", "🎨 Smarter: On", "🎨 Smarter: Off"))
+muchSmarterBtn.MouseButton1Click:Connect(createToggleHandler(muchSmarterBtn, "isMuchSmarter", "🔄 Much Smarter", "🔄 Much Smarter: On", "🔄 Much Smarter: Off"))
+aLotSmarterBtn.MouseButton1Click:Connect(createToggleHandler(aLotSmarterBtn, "isALotSmarter", "🛡️ A Lot Smarter", "🛡️ A Lot Smarter: On", "🛡️ A Lot Smarter: Off"))
+waySmarterBtn.MouseButton1Click:Connect(createToggleHandler(waySmarterBtn, "isWaySmarter", "🛡️ Way Smarter", "🛡️ Way Smarter: On", "🛡️ Way Smarter: Off"))
+moreIntelligentBtn.MouseButton1Click:Connect(createToggleHandler(moreIntelligentBtn, "isMoreIntelligent", "🛡️ More Intelligent", "🛡️ More Intelligent: On", "🛡️ More Intelligent: Off"))
+brightBtn.MouseButton1Click:Connect(createToggleHandler(brightBtn, "isBright", "🎨 Bright", "🎨 Bright: On", "🎨 Bright: Off"))
+sharpBtn.MouseButton1Click:Connect(createToggleHandler(sharpBtn, "isSharp", "🛡️ Sharp", "🛡️ Sharp: On", "🛡️ Sharp: Off"))
+quickThinkerBtn.MouseButton1Click:Connect(createToggleHandler(quickThinkerBtn, "isQuickThinker", "⚡ Quick Thinker", "⚡ Quick Thinker: On", "⚡ Quick Thinker: Off"))
+
+-- Logic for Block Size TextBox
+sizeBox.FocusLost:Connect(function(enterPressed)
+    if enterPressed then
+        local num = tonumber(sizeBox.Text)
+        if num and num >= 2 and num <= 10 then
+            blockSize = num
+            isAutoSize = false
+            superSmartBtn.Text = "📏 Super Smart: Off"
+            if currentBlock then
+                currentBlock.Size = Vector3.new(blockSize, 1, blockSize)
+            end
+            updateStatusLabel()
+            title.Text = "📏 Manual: " .. num .. "x" .. num .. "!"
+        else
+            title.Text = "❌ Size Invalid!"
+        end
+        task.spawn(resetTitle)
+    end
+end)
+
+-- Logic for WalkSpeed TextBox
+speedBox.FocusLost:Connect(function(enterPressed)
+    if enterPressed then
+        local num = tonumber(speedBox.Text)
+        if num and num >= 8 and num <= 100 then
+            customWalkSpeed = num
+            local character = LocalPlayer.Character
+            local humanoid = character and character:FindFirstChild("Humanoid")
+            if humanoid then
+                humanoid.WalkSpeed = customWalkSpeed
+                title.Text = "🏃 Speed: " .. num .. "!"
+            else
+                title.Text = "❌ No Humanoid!"
+            end
+        else
+            title.Text = "❌ Speed Invalid!"
+        end
+        task.spawn(resetTitle)
+    end
+end)
+
+-- Save original WalkSpeed and clean up on character reset
+LocalPlayer.CharacterAdded:Connect(function(character)
+    local humanoid = character:WaitForChild("Humanoid")
+    originalWalkSpeed = humanoid.WalkSpeed
+    if isAutoBlock then
+        if not autoBlockConnection then
+            autoBlockConnection = RunService.Heartbeat:Connect(updateAutoBlock)
+        end
+    end
+    humanoid.WalkSpeed = customWalkSpeed
+end)
+
+-- Clean up Auto Block on character reset
+LocalPlayer.CharacterRemoving:Connect(function()
+    if autoBlockConnection then
+        autoBlockConnection:Disconnect()
+        autoBlockConnection = nil
+    end
+    if currentBlock then
+        currentBlock:Destroy()
+        currentBlock = nil
+    end
+end)
+
+-- Hover Effect for Buttons
+local function addHoverEffect(button)
+    local original = button.BackgroundColor3
+    button.MouseEnter:Connect(function()
+        button.BackgroundColor3 = original:Lerp(Color3.new(1, 1, 1), 0.2)
+    end)
+    button.MouseLeave:Connect(function()
+        button.BackgroundColor3 = original
+    end)
+end
+addHoverEffect(autoBlockBtn)
+addHoverEffect(geniusBtn)
+addHoverEffect(brilliantBtn)
+addHoverEffect(extremelySmartBtn)
+addHoverEffect(reallySmartBtn)
+addHoverEffect(superSmartBtn)
+addHoverEffect(smarterBtn)
+addHoverEffect(muchSmarterBtn)
+addHoverEffect(aLotSmarterBtn)
+addHoverEffect(waySmarterBtn)
+addHoverEffect(moreIntelligentBtn)
+addHoverEffect(brightBtn)
+addHoverEffect(sharpBtn)
+addHoverEffect(quickThinkerBtn)
+addHoverEffect(openCloseBtn)
+
+print("✅ Simple GUI Library Loaded (Auto Block V3 - Super Smart with Fixed Scrolling)")
