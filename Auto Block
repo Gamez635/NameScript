@@ -1,0 +1,319 @@
+--// Simple GUI Library with Auto Block and WalkSpeed (Fixed for Moving + Jumping)
+-- Created for Anti-Fall and Speed Customization
+
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local CoreGui = game:GetService("CoreGui")
+local RunService = game:GetService("RunService")
+local LocalPlayer = Players.LocalPlayer
+
+-- GUI Initialization
+local gui = Instance.new("ScreenGui")
+gui.Name = "SimpleGuiLibrary"
+gui.Parent = CoreGui
+gui.ResetOnSpawn = false
+gui.IgnoreGuiInset = false -- Respect Roblox topbar boundaries
+
+-- Drag Handler
+local function makeDraggable(frame)
+    local dragging, dragInput, dragStart, startPos
+    frame.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            dragStart = input.Position
+            startPos = frame.Position
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    dragging = false
+                end
+            end)
+        end
+    end)
+    frame.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+            dragInput = input
+        end
+    end)
+    UserInputService.InputChanged:Connect(function(input)
+        if input == dragInput and dragging then
+            local delta = input.Position - dragStart
+            frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        end
+    end)
+end
+
+-- Main Frame
+local main = Instance.new("Frame")
+main.Size = UDim2.new(0, 100, 0, 100) -- Compact size
+main.Position = UDim2.new(0.5, -50, 0.5, -50) -- Centered
+main.BackgroundColor3 = Color3.fromRGB(20, 140, 255) -- Blue theme
+main.BorderSizePixel = 0
+main.Visible = true
+main.Parent = gui
+makeDraggable(main)
+
+local corner = Instance.new("UICorner", main)
+corner.CornerRadius = UDim.new(0, 12)
+local stroke = Instance.new("UIStroke", main)
+stroke.Color = Color3.fromRGB(255, 255, 255)
+stroke.Thickness = 1
+stroke.Transparency = 0.8
+
+-- Open/Close Button
+local openCloseBtn = Instance.new("TextButton")
+openCloseBtn.Size = UDim2.new(0, 30, 0, 30)
+openCloseBtn.Position = UDim2.new(0, 10, 0, 50) -- Below Roblox topbar
+openCloseBtn.Text = "❌"
+openCloseBtn.BackgroundColor3 = Color3.fromRGB(255, 80, 80) -- Red when open
+openCloseBtn.TextColor3 = Color3.new(1, 1, 1)
+openCloseBtn.Font = Enum.Font.GothamBold
+openCloseBtn.TextSize = 16
+openCloseBtn.TextScaled = false
+openCloseBtn.Visible = true
+openCloseBtn.Parent = gui
+Instance.new("UICorner", openCloseBtn).CornerRadius = UDim.new(0, 12)
+local openCloseStroke = Instance.new("UIStroke", openCloseBtn)
+openCloseStroke.Color = Color3.fromRGB(255, 255, 255)
+openCloseStroke.Thickness = 1
+openCloseStroke.Transparency = 0.9
+
+-- Title
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, 0, 0, 20)
+title.Position = UDim2.new(0, 0, 0, 5)
+title.BackgroundTransparency = 1
+title.Text = "🌟 Simple GUI"
+title.TextColor3 = Color3.new(1, 1, 1)
+title.Font = Enum.Font.GothamBold
+title.TextSize = 12
+title.TextScaled = false
+title.Parent = main
+
+-- Scrolling Frame for Components
+local contentFrame = Instance.new("ScrollingFrame")
+contentFrame.Size = UDim2.new(0.9, 0, 0, 75)
+contentFrame.Position = UDim2.new(0.05, 0, 0, 20)
+contentFrame.BackgroundTransparency = 1
+contentFrame.ScrollBarThickness = 4
+contentFrame.ScrollBarImageColor3 = Color3.fromRGB(255, 160, 80) -- Orange scrollbar
+contentFrame.CanvasSize = UDim2.new(0, 0, 0, 45) -- 3 components * 15
+contentFrame.Parent = main
+
+-- Auto Block Button
+local autoBlockBtn = Instance.new("TextButton")
+autoBlockBtn.Size = UDim2.new(1, -10, 0, 15)
+autoBlockBtn.Position = UDim2.new(0, 5, 0, 0)
+autoBlockBtn.Text = "🛡️ Auto Block: Off"
+autoBlockBtn.BackgroundColor3 = Color3.fromRGB(50, 160, 255)
+autoBlockBtn.TextColor3 = Color3.new(1, 1, 1)
+autoBlockBtn.Font = Enum.Font.GothamBold
+autoBlockBtn.TextSize = 10
+autoBlockBtn.TextScaled = false
+Instance.new("UICorner", autoBlockBtn).CornerRadius = UDim.new(0, 8)
+local autoBlockStroke = Instance.new("UIStroke", autoBlockBtn)
+autoBlockStroke.Color = Color3.fromRGB(255, 255, 255)
+autoBlockStroke.Thickness = 1
+autoBlockStroke.Transparency = 0.9
+autoBlockBtn.Parent = contentFrame
+
+-- WalkSpeed TextBox
+local speedBox = Instance.new("TextBox")
+speedBox.Size = UDim2.new(1, -10, 0, 15)
+speedBox.Position = UDim2.new(0, 5, 0, 15)
+speedBox.BackgroundColor3 = Color3.fromRGB(60, 170, 255)
+speedBox.TextColor3 = Color3.new(1, 1, 1)
+speedBox.Font = Enum.Font.Gotham
+speedBox.TextSize = 10
+speedBox.PlaceholderText = "🏃 Speed"
+speedBox.Text = "16"
+Instance.new("UICorner", speedBox).CornerRadius = UDim.new(0, 8)
+local speedStroke = Instance.new("UIStroke", speedBox)
+speedStroke.Color = Color3.fromRGB(255, 255, 255)
+speedStroke.Thickness = 1
+speedStroke.Transparency = 0.9
+speedBox.Parent = contentFrame
+
+-- Status Label
+local statusLabel = Instance.new("TextLabel")
+statusLabel.Size = UDim2.new(1, -10, 0, 15)
+statusLabel.Position = UDim2.new(0, 5, 0, 30)
+statusLabel.BackgroundTransparency = 1
+statusLabel.TextColor3 = Color3.fromRGB(200, 220, 255)
+statusLabel.Font = Enum.Font.GothamSemibold
+statusLabel.TextSize = 10
+statusLabel.TextScaled = false
+statusLabel.Text = "🛡️ Status: Off"
+statusLabel.Parent = contentFrame
+
+-- State variables
+local isAutoBlock = false
+local currentBlock = nil
+local originalWalkSpeed = 16
+local customWalkSpeed = 16
+local autoBlockConnection
+
+-- Function to reset title
+local function resetTitle()
+    task.wait(2)
+    title.Text = "🌟 Simple GUI"
+end
+
+-- Fixed Auto Block Logic (Moving + Jumping)
+local function updateAutoBlock()
+    if isAutoBlock and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        local humanoid = LocalPlayer.Character.Humanoid
+        local hrp = LocalPlayer.Character.HumanoidRootPart
+        -- Update block if moving or jumping
+        if humanoid.MoveDirection.Magnitude > 0 or humanoid.Jump then
+            -- Raycast to find floor position
+            local rayOrigin = hrp.Position
+            local rayDirection = Vector3.new(0, -10, 0) -- Raycast down 10 units
+            local raycastParams = RaycastParams.new()
+            raycastParams.FilterDescendantsInstances = {LocalPlayer.Character}
+            raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
+            local raycastResult = workspace:Raycast(rayOrigin, rayDirection, raycastParams)
+            
+            local blockPosition
+            if raycastResult then
+                -- Place block just below the floor surface
+                blockPosition = raycastResult.Position + Vector3.new(0, -0.5, 0) -- 0.5 units below floor
+            else
+                -- Fallback: Place block 3 units below HRP if no floor detected
+                blockPosition = hrp.Position - Vector3.new(0, 3, 0)
+                title.Text = "❌ No Floor!"
+                task.spawn(resetTitle)
+            end
+
+            if not currentBlock then
+                currentBlock = Instance.new("Part")
+                currentBlock.Size = Vector3.new(4, 1, 4) -- Small platform
+                currentBlock.Anchored = true
+                currentBlock.CanCollide = true
+                currentBlock.Transparency = 0.5
+                currentBlock.Color = Color3.fromRGB(255, 120, 50) -- Orange
+                currentBlock.Parent = game.Workspace
+            end
+            -- Update block position
+            currentBlock.Position = Vector3.new(blockPosition.X, blockPosition.Y, blockPosition.Z)
+        elseif currentBlock then
+            -- Remove block if not moving and not jumping
+            currentBlock:Destroy()
+            currentBlock = nil
+        end
+    elseif currentBlock then
+        currentBlock:Destroy()
+        currentBlock = nil
+    end
+end
+
+-- Logic for Open/Close Button
+local isOpen = true
+openCloseBtn.MouseButton1Click:Connect(function()
+    isOpen = not isOpen
+    main.Visible = isOpen
+    openCloseBtn.Text = isOpen and "❌" or "➕"
+    openCloseBtn.BackgroundColor3 = isOpen and Color3.fromRGB(255, 80, 80) or Color3.fromRGB(80, 200, 80)
+    if not isOpen and isAutoBlock then
+        isAutoBlock = false
+        autoBlockBtn.Text = "🛡️ Auto Block: Off"
+        statusLabel.Text = "🛡️ Status: Off"
+        if autoBlockConnection then
+            autoBlockConnection:Disconnect()
+            autoBlockConnection = nil
+        end
+        if currentBlock then
+            currentBlock:Destroy()
+            currentBlock = nil
+        end
+    end
+    if not isOpen then
+        local character = LocalPlayer.Character
+        local humanoid = character and character:FindFirstChild("Humanoid")
+        if humanoid then
+            humanoid.WalkSpeed = originalWalkSpeed -- Reset WalkSpeed
+        end
+    end
+end)
+
+-- Logic for Auto Block Button
+autoBlockBtn.MouseButton1Click:Connect(function()
+    isAutoBlock = not isAutoBlock
+    autoBlockBtn.Text = isAutoBlock and "🛡️ Auto Block: On" or "🛡️ Auto Block: Off"
+    statusLabel.Text = isAutoBlock and "🛡️ Status: On" or "🛡️ Status: Off"
+    title.Text = isAutoBlock and "🛡️ Auto Block On!" or "🛡️ Auto Block Off!"
+    task.spawn(resetTitle)
+    if isAutoBlock then
+        if not autoBlockConnection then
+            autoBlockConnection = RunService.Heartbeat:Connect(updateAutoBlock)
+        end
+    else
+        if autoBlockConnection then
+            autoBlockConnection:Disconnect()
+            autoBlockConnection = nil
+        end
+        if currentBlock then
+            currentBlock:Destroy()
+            currentBlock = nil
+        end
+    end
+end)
+
+-- Logic for WalkSpeed TextBox
+speedBox.FocusLost:Connect(function(enterPressed)
+    if enterPressed then
+        local num = tonumber(speedBox.Text)
+        if num and num >= 8 and num <= 100 then
+            customWalkSpeed = num
+            local character = LocalPlayer.Character
+            local humanoid = character and character:FindFirstChild("Humanoid")
+            if humanoid then
+                humanoid.WalkSpeed = customWalkSpeed
+                title.Text = "🏃 Speed: " .. num .. "!"
+            else
+                title.Text = "❌ No Humanoid!"
+            end
+        else
+            title.Text = "❌ Speed Invalid!"
+        end
+        task.spawn(resetTitle)
+    end
+end)
+
+-- Save original WalkSpeed and clean up on character reset
+LocalPlayer.CharacterAdded:Connect(function(character)
+    local humanoid = character:WaitForChild("Humanoid")
+    originalWalkSpeed = humanoid.WalkSpeed
+    if isAutoBlock then
+        if not autoBlockConnection then
+            autoBlockConnection = RunService.Heartbeat:Connect(updateAutoBlock)
+        end
+    end
+    humanoid.WalkSpeed = customWalkSpeed
+end)
+
+-- Clean up Auto Block on character reset
+LocalPlayer.CharacterRemoving:Connect(function()
+    if autoBlockConnection then
+        autoBlockConnection:Disconnect()
+        autoBlockConnection = nil
+    end
+    if currentBlock then
+        currentBlock:Destroy()
+        currentBlock = nil
+    end
+end)
+
+-- Hover Effect for Buttons
+local function addHoverEffect(button)
+    local original = button.BackgroundColor3
+    button.MouseEnter:Connect(function()
+        button.BackgroundColor3 = original:Lerp(Color3.new(1, 1, 1), 0.2)
+    end)
+    button.MouseLeave:Connect(function()
+        button.BackgroundColor3 = original
+    end)
+end
+addHoverEffect(autoBlockBtn)
+addHoverEffect(openCloseBtn)
+
+print("✅ Simple GUI Library Loaded (Fixed Auto Block for Moving + Jumping)")
