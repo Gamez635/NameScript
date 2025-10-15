@@ -1,0 +1,454 @@
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local CoreGui = game:GetService("CoreGui")
+local LocalPlayer = Players.LocalPlayer
+local Mouse = LocalPlayer:GetMouse()
+
+-- 🖼️ Membuat GUI
+local gui = Instance.new("ScreenGui")
+gui.Name = "SimpleGuiLibraryV5"
+gui.Parent = CoreGui
+gui.ResetOnSpawn = false
+gui.IgnoreGuiInset = false
+
+-- 🧲 Fungsi Draggable
+local function makeDraggable(frame)
+    local dragging, dragInput, dragStart, startPos
+    frame.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            dragStart = input.Position
+            startPos = frame.Position
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    dragging = false
+                end
+            end)
+        end
+    end)
+    frame.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+            dragInput = input
+        end
+    end)
+    UserInputService.InputChanged:Connect(function(input)
+        if input == dragInput and dragging then
+            local delta = input.Position - dragStart
+            frame.Position = UDim2.new(
+                startPos.X.Scale, startPos.X.Offset + delta.X,
+                startPos.Y.Scale, startPos.Y.Offset + delta.Y
+            )
+        end
+    end)
+end
+
+-- 🧰 Main UI Frame
+local main = Instance.new("Frame")
+main.Size = UDim2.new(0, 100, 0, 100) -- Ukuran sangat kecil
+main.Position = UDim2.new(0.5, -50, 0.5, -50)
+main.BackgroundColor3 = Color3.fromRGB(50, 0, 100) -- Ungu tua
+main.BorderSizePixel = 0
+main.Visible = true
+main.Parent = gui
+makeDraggable(main)
+Instance.new("UICorner", main).CornerRadius = UDim.new(0, 8)
+local stroke = Instance.new("UIStroke", main)
+stroke.Color = Color3.fromRGB(200, 200, 200) -- Abu-abu terang
+stroke.Thickness = 1
+stroke.Transparency = 0.7
+
+-- ❌ Open/Close Button
+local openCloseBtn = Instance.new("TextButton")
+openCloseBtn.Size = UDim2.new(0, 20, 0, 20) -- Dikecilkan
+openCloseBtn.Position = UDim2.new(0, 10, 0, 30)
+openCloseBtn.Text = "❌"
+openCloseBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50) -- Merah tua
+openCloseBtn.TextColor3 = Color3.new(1, 1, 1)
+openCloseBtn.Font = Enum.Font.GothamBold
+openCloseBtn.TextSize = 12 -- Dikecilkan
+openCloseBtn.Parent = gui
+Instance.new("UICorner", openCloseBtn).CornerRadius = UDim.new(0, 8)
+
+-- 🧾 Title
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, 0, 0, 15) -- Dikecilkan
+title.Position = UDim2.new(0, 0, 0, 2)
+title.BackgroundTransparency = 1
+title.Text = "🌟 INFJUMP"
+title.TextColor3 = Color3.fromRGB(255, 180, 0) -- Oranye cerah
+title.Font = Enum.Font.GothamBold
+title.TextSize = 8 -- Dikecilkan
+title.Parent = main
+
+-- 🧭 Content Frame
+local contentFrame = Instance.new("ScrollingFrame")
+contentFrame.Size = UDim2.new(0.9, 0, 0, 75) -- Dikecilkan
+contentFrame.Position = UDim2.new(0.05, 0, 0, 18)
+contentFrame.BackgroundTransparency = 1
+contentFrame.ScrollBarThickness = 3 -- Dikecilkan
+contentFrame.ScrollBarImageColor3 = Color3.fromRGB(255, 100, 0) -- Oranye tua
+contentFrame.CanvasSize = UDim2.new(0, 0, 0, 200) -- Canvas lebih besar untuk scroll
+contentFrame.AutomaticCanvasSize = Enum.AutomaticSize.Y
+contentFrame.Parent = main
+local listLayout = Instance.new("UIListLayout", contentFrame)
+listLayout.SortOrder = Enum.SortOrder.LayoutOrder
+listLayout.Padding = UDim.new(0, 2) -- Padding lebih kecil
+
+-- 🛠️ Fungsi Membuat Tombol
+local function createButton(name, color)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(1, -6, 0, 15) -- Dikecilkan
+    btn.BackgroundColor3 = color
+    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btn.Font = Enum.Font.GothamBold
+    btn.TextSize = 8 -- Dikecilkan
+    btn.Text = name
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 5)
+    btn.Parent = contentFrame
+    return btn
+end
+
+-- 🛠️ Fungsi Membuat TextBox
+local function createTextBox(placeholder, color, defaultText)
+    local box = Instance.new("TextBox")
+    box.Size = UDim2.new(1, -6, 0, 15) -- Dikecilkan
+    box.BackgroundColor3 = color
+    box.TextColor3 = Color3.fromRGB(255, 255, 255)
+    box.Font = Enum.Font.Gotham
+    box.TextSize = 8 -- Dikecilkan
+    box.PlaceholderText = placeholder
+    box.Text = defaultText
+    Instance.new("UICorner", box).CornerRadius = UDim.new(0, 5)
+    box.Parent = contentFrame
+    return box
+end
+
+-- 🧭 UI Elements
+local infJumpBtn = createButton("🛫 Inf J.: Off", Color3.fromRGB(80, 20, 140))
+local jumpPowerBox = createTextBox("📈 J. Power", Color3.fromRGB(100, 40, 160), "50")
+local superJumpBtn = createButton("🚀 Super J.: Off", Color3.fromRGB(80, 20, 140))
+local superJumpPowerBox = createTextBox("🚀 S.J. Power", Color3.fromRGB(100, 40, 160), "100")
+local extremeJumpBtn = createButton("🌋 Ext. J.: Off", Color3.fromRGB(80, 20, 140))
+local extremeJumpPowerBox = createTextBox("🌋 E.J. Power", Color3.fromRGB(100, 40, 160), "150")
+local highestJumpBtn = createButton("⛰️ High J.: Off", Color3.fromRGB(80, 20, 140))
+local highestJumpPowerBox = createTextBox("⛰️ H.J. Power", Color3.fromRGB(100, 40, 160), "200")
+local speedBtn = createButton("🏃 Speed: Off", Color3.fromRGB(80, 20, 140))
+local speedBox = createTextBox("🏃 Speed", Color3.fromRGB(100, 40, 160), "16")
+local deleteToolsBtn = createButton("🗑️ Del. Tools: Off", Color3.fromRGB(80, 20, 140))
+
+local statusLabel = Instance.new("TextLabel")
+statusLabel.Size = UDim2.new(1, -6, 0, 15) -- Dikecilkan
+statusLabel.BackgroundTransparency = 1
+statusLabel.TextColor3 = Color3.fromRGB(255, 200, 100) -- Oranye terang
+statusLabel.Font = Enum.Font.GothamSemibold
+statusLabel.TextSize = 8 -- Dikecilkan
+statusLabel.Text = "🛫 Off | 📈 50 | 🚀 Off | 🌋 Off | ⛰️ Off | 🏃 16 | 🗑️ Off"
+statusLabel.Parent = contentFrame
+
+-- 🧠 Logic Variables
+local isInfJump = false
+local isSuperJump = false
+local isExtremeJump = false
+local isHighestJump = false
+local isCustomSpeed = false
+local isDeleteTools = false
+local jumpPower = 50
+local superJumpPower = 100
+local extremeJumpPower = 150
+local highestJumpPower = 200
+local walkSpeed = 16
+local jumpConnection
+local deleteConnection
+
+local function resetTitle()
+    task.wait(2)
+    title.Text = "🌟 INFJUMP"
+end
+
+local function updateStatus()
+    statusLabel.Text = string.format("🛫 %s | 📈 %d | 🚀 %s | 🌋 %s | ⛰️ %s | 🏃 %d | 🗑️ %s",
+        isInfJump and "On" or "Off", jumpPower,
+        isSuperJump and "On" or "Off",
+        isExtremeJump and "On" or "Off",
+        isHighestJump and "On" or "Off",
+        walkSpeed, isDeleteTools and "On" or "Off")
+end
+
+-- 🛫 Infinity Jump Logic
+local function enableInfJump()
+    if jumpConnection then jumpConnection:Disconnect() end
+    jumpConnection = UserInputService.JumpRequest:Connect(function()
+        local char = LocalPlayer.Character
+        if char then
+            local humanoid = char:FindFirstChildOfClass("Humanoid")
+            if humanoid then
+                humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+            end
+        end
+    end)
+end
+
+local function disableInfJump()
+    if jumpConnection then
+        jumpConnection:Disconnect()
+        jumpConnection = nil
+    end
+end
+
+-- 📈 Update Jump Power
+local function updateJumpPower()
+    local char = LocalPlayer.Character
+    if not char then return end
+    local humanoid = char:FindFirstChildOfClass("Humanoid")
+    if not humanoid then return end
+
+    if isSuperJump then
+        humanoid.JumpPower = superJumpPower
+    elseif isExtremeJump then
+        humanoid.JumpPower = extremeJumpPower
+    elseif isHighestJump then
+        humanoid.JumpPower = highestJumpPower
+    else
+        humanoid.JumpPower = jumpPower
+    end
+end
+
+-- 🏃 Update WalkSpeed
+local function updateWalkSpeed()
+    local char = LocalPlayer.Character
+    if not char then return end
+    local humanoid = char:FindFirstChildOfClass("Humanoid")
+    if not humanoid then return end
+    humanoid.WalkSpeed = isCustomSpeed and walkSpeed or 16
+end
+
+-- 🗑️ Delete Tools
+local function enableDeleteTools()
+    if deleteConnection then deleteConnection:Disconnect() end
+    deleteConnection = Mouse.Button1Down:Connect(function()
+        if not isDeleteTools then return end
+        local target = Mouse.Target
+        if target and target:IsDescendantOf(workspace) then
+            target:Destroy()
+            title.Text = "🗑️ Deleted!"
+            task.spawn(resetTitle)
+        end
+    end)
+end
+
+local function disableDeleteTools()
+    if deleteConnection then
+        deleteConnection:Disconnect()
+        deleteConnection = nil
+    end
+end
+
+-- 🛫 Infinity Jump Button
+infJumpBtn.MouseButton1Click:Connect(function()
+    isInfJump = not isInfJump
+    infJumpBtn.Text = isInfJump and "🛫 Inf J.: On" or "🛫 Inf J.: Off"
+    title.Text = isInfJump and "🛫 Inf J. On!" or "🛫 Inf J. Off!"
+    task.spawn(resetTitle)
+    updateStatus()
+    if isInfJump then enableInfJump() else disableInfJump() end
+end)
+
+-- 📈 Jump Power Input
+jumpPowerBox.FocusLost:Connect(function(enterPressed)
+    if enterPressed then
+        local num = tonumber(jumpPowerBox.Text)
+        if num and num >= 0 then
+            jumpPower = num
+            if not (isSuperJump or isExtremeJump or isHighestJump) then
+                updateJumpPower()
+            end
+            title.Text = "📈 J. Power: " .. num
+        else
+            title.Text = "❌ Invalid!"
+        end
+        updateStatus()
+        task.spawn(resetTitle)
+    end
+end)
+
+-- 🚀 Super Jump Button
+superJumpBtn.MouseButton1Click:Connect(function()
+    isSuperJump = not isSuperJump
+    isExtremeJump = false
+    isHighestJump = false
+    superJumpBtn.Text = isSuperJump and "🚀 Super J.: On" or "🚀 Super J.: Off"
+    extremeJumpBtn.Text = "🌋 Ext. J.: Off"
+    highestJumpBtn.Text = "⛰️ High J.: Off"
+    title.Text = isSuperJump and "🚀 Super J. On!" or "🚀 Super J. Off!"
+    task.spawn(resetTitle)
+    updateStatus()
+    updateJumpPower()
+    if isSuperJump and not isInfJump then enableInfJump() end
+end)
+
+-- 🚀 Super Jump Power Input
+superJumpPowerBox.FocusLost:Connect(function(enterPressed)
+    if enterPressed then
+        local num = tonumber(superJumpPowerBox.Text)
+        if num and num >= 0 then
+            superJumpPower = num
+            if isSuperJump then
+                updateJumpPower()
+            end
+            title.Text = "🚀 S.J. Power: " .. num
+        else
+            title.Text = "❌ Invalid!"
+        end
+        updateStatus()
+        task.spawn(resetTitle)
+    end
+end)
+
+-- 🌋 Extreme Jump Button
+extremeJumpBtn.MouseButton1Click:Connect(function()
+    isExtremeJump = not isExtremeJump
+    isSuperJump = false
+    isHighestJump = false
+    extremeJumpBtn.Text = isExtremeJump and "🌋 Ext. J.: On" or "🌋 Ext. J.: Off"
+    superJumpBtn.Text = "🚀 Super J.: Off"
+    highestJumpBtn.Text = "⛰️ High J.: Off"
+    title.Text = isExtremeJump and "🌋 Ext. J. On!" or "🌋 Ext. J. Off!"
+    task.spawn(resetTitle)
+    updateStatus()
+    updateJumpPower()
+    if isExtremeJump and not isInfJump then enableInfJump() end
+end)
+
+-- 🌋 Extreme Jump Power Input
+extremeJumpPowerBox.FocusLost:Connect(function(enterPressed)
+    if enterPressed then
+        local num = tonumber(extremeJumpPowerBox.Text)
+        if num and num >= 0 then
+            extremeJumpPower = num
+            if isExtremeJump then
+                updateJumpPower()
+            end
+            title.Text = "🌋 E.J. Power: " .. num
+        else
+            title.Text = "❌ Invalid!"
+        end
+        updateStatus()
+        task.spawn(resetTitle)
+    end
+end)
+
+-- ⛰️ Highest Jump Button
+highestJumpBtn.MouseButton1Click:Connect(function()
+    isHighestJump = not isHighestJump
+    isSuperJump = false
+    isExtremeJump = false
+    highestJumpBtn.Text = isHighestJump and "⛰️ High J.: On" or "⛰️ High J.: Off"
+    superJumpBtn.Text = "🚀 Super J.: Off"
+    extremeJumpBtn.Text = "🌋 Ext. J.: Off"
+    title.Text = isHighestJump and "⛰️ High J. On!" or "⛰️ High J. Off!"
+    task.spawn(resetTitle)
+    updateStatus()
+    updateJumpPower()
+    if isHighestJump and not isInfJump then enableInfJump() end
+end)
+
+-- ⛰️ Highest Jump Power Input
+highestJumpPowerBox.FocusLost:Connect(function(enterPressed)
+    if enterPressed then
+        local num = tonumber(highestJumpPowerBox.Text)
+        if num and num >= 0 then
+            highestJumpPower = num
+            if isHighestJump then
+                updateJumpPower()
+            end
+            title.Text = "⛰️ H.J. Power: " .. num
+        else
+            title.Text = "❌ Invalid!"
+        end
+        updateStatus()
+        task.spawn(resetTitle)
+    end
+end)
+
+-- 🏃 Speed Button
+speedBtn.MouseButton1Click:Connect(function()
+    isCustomSpeed = not isCustomSpeed
+    speedBtn.Text = isCustomSpeed and "🏃 Speed: On" or "🏃 Speed: Off"
+    title.Text = isCustomSpeed and "🏃 Speed On!" or "🏃 Speed Off!"
+    updateWalkSpeed()
+    task.spawn(resetTitle)
+    updateStatus()
+end)
+
+-- 🏃 Speed Input
+speedBox.FocusLost:Connect(function(enterPressed)
+    if enterPressed then
+        local num = tonumber(speedBox.Text)
+        if num and num >= 0 then
+            walkSpeed = num
+            if isCustomSpeed then
+                updateWalkSpeed()
+            end
+            title.Text = "🏃 Speed: " .. num
+        else
+            title.Text = "❌ Invalid!"
+        end
+        updateStatus()
+        task.spawn(resetTitle)
+    end
+end)
+
+-- 🗑️ Delete Tools Button
+deleteToolsBtn.MouseButton1Click:Connect(function()
+    isDeleteTools = not isDeleteTools
+    deleteToolsBtn.Text = isDeleteTools and "🗑️ Del. Tools: On" or "🗑️ Del. Tools: Off"
+    title.Text = isDeleteTools and "🗑️ Del. Tools On!" or "🗑️ Del. Tools Off!"
+    task.spawn(resetTitle)
+    updateStatus()
+    if isDeleteTools then enableDeleteTools() else disableDeleteTools() end
+end)
+
+-- 🧠 Character Handling
+LocalPlayer.CharacterAdded:Connect(function(char)
+    local humanoid = char:WaitForChild("Humanoid")
+    if isInfJump or isSuperJump or isExtremeJump or isHighestJump then
+        enableInfJump()
+    end
+    if isCustomSpeed then
+        updateWalkSpeed()
+    end
+    updateJumpPower()
+end)
+
+LocalPlayer.CharacterRemoving:Connect(function()
+    disableInfJump()
+    disableDeleteTools()
+end)
+
+-- 🔓 Open/Close
+local isOpen = true
+openCloseBtn.MouseButton1Click:Connect(function()
+    isOpen = not isOpen
+    main.Visible = isOpen
+    openCloseBtn.Text = isOpen and "❌" or "➕"
+    openCloseBtn.BackgroundColor3 = isOpen and Color3.fromRGB(200, 50, 50) or Color3.fromRGB(50, 200, 50)
+    if not isOpen then
+        isInfJump = false
+        isSuperJump = false
+        isExtremeJump = false
+        isHighestJump = false
+        isCustomSpeed = false
+        isDeleteTools = false
+        infJumpBtn.Text = "🛫 Inf J.: Off"
+        superJumpBtn.Text = "🚀 Super J.: Off"
+        extremeJumpBtn.Text = "🌋 Ext. J.: Off"
+        highestJumpBtn.Text = "⛰️ High J.: Off"
+        speedBtn.Text = "🏃 Speed: Off"
+        deleteToolsBtn.Text = "🗑️ Del. Tools: Off"
+        updateStatus()
+        disableInfJump()
+        disableDeleteTools()
+        updateWalkSpeed()
+        updateJumpPower()
+    end
+end)
