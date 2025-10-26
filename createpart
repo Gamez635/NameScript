@@ -1,0 +1,246 @@
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local StarterGui = game:GetService("StarterGui")
+local RunService = game:GetService("RunService")
+
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local hrp = character:WaitForChild("HumanoidRootPart")
+
+-- GUI Setup
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "SimpleGuiLibrary"
+screenGui.Parent = player:WaitForChild("PlayerGui")
+screenGui.ResetOnSpawn = true
+
+-- Frame utama (kecil dan draggable)
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0, 150, 0, 150) -- Ukuran kecil
+frame.Position = UDim2.new(0.5, -75, 0.5, -50)
+frame.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+frame.BorderSizePixel = 0
+frame.Visible = false
+frame.Active = true
+frame.Draggable = true
+frame.Parent = screenGui
+
+-- ScrollingFrame untuk menu yang bisa di-scroll
+local scrollingFrame = Instance.new("ScrollingFrame")
+scrollingFrame.Size = UDim2.new(1, -10, 1, -10) -- Sedikit padding
+scrollingFrame.Position = UDim2.new(0, 5, 0, 5)
+scrollingFrame.BackgroundTransparency = 1
+scrollingFrame.ScrollBarThickness = 5
+scrollingFrame.CanvasSize = UDim2.new(0, 0, 0, 0) -- Akan diupdate secara dinamis
+scrollingFrame.ScrollingDirection = Enum.ScrollingDirection.Y -- Scroll hanya vertikal
+scrollingFrame.Parent = frame
+
+-- UIListLayout untuk mengatur tata letak vertikal
+local uiListLayout = Instance.new("UIListLayout")
+uiListLayout.Padding = UDim.new(0, 5)
+uiListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+uiListLayout.Parent = scrollingFrame
+
+-- Variabel untuk part, kecepatan, ukuran, dan auto follow
+local currentPart = nil
+local moveSpeed = 50
+local speedIncrement = 10
+local partSize = Vector3.new(5, 1, 5)
+local colors = {
+	BrickColor.new("Bright blue"),
+	BrickColor.new("Really red"),
+	BrickColor.new("Lime green"),
+	BrickColor.new("Hot pink"),
+	BrickColor.new("Institutional white")
+}
+local currentColorIndex = 1
+local autoFollow = false
+
+-- Fungsi untuk update CanvasSize secara dinamis
+local function updateCanvasSize()
+	local totalHeight = uiListLayout.AbsoluteContentSize.Y
+	scrollingFrame.CanvasSize = UDim2.new(0, 0, 0, totalHeight + 10) -- Tambah padding
+end
+uiListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(updateCanvasSize)
+
+-- Fungsi untuk membuat part
+local function createPart()
+	if currentPart then
+		currentPart:Destroy()
+	end
+	
+	currentPart = Instance.new("Part")
+	currentPart.Size = partSize
+	currentPart.Position = hrp.Position - Vector3.new(0, 3, 0)
+	currentPart.Anchored = autoFollow
+	currentPart.CanCollide = true
+	currentPart.BrickColor = colors[currentColorIndex]
+	currentPart.Parent = game.Workspace
+	
+	if not autoFollow then
+		local bodyVelocity = Instance.new("BodyVelocity")
+		bodyVelocity.MaxForce = Vector3.new(0, math.huge, 0)
+		bodyVelocity.Velocity = Vector3.new(0, 0, 0)
+		bodyVelocity.Parent = currentPart
+	end
+end
+
+-- Fungsi Auto Follow
+local function updateAutoFollow()
+	if autoFollow and currentPart then
+		currentPart.Anchored = true
+		currentPart.Position = hrp.Position - Vector3.new(0, 3, 0)
+	end
+end
+RunService.RenderStepped:Connect(function()
+	if autoFollow and currentPart then
+		updateAutoFollow()
+	end
+end)
+
+-- Fungsi untuk membuat tombol
+local function createButton(name, text, callback)
+	local button = Instance.new("TextButton")
+	button.Size = UDim2.new(0, 130, 0, 25)
+	button.Text = text
+	button.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
+	button.TextColor3 = Color3.fromRGB(255, 255, 255)
+	button.Parent = scrollingFrame
+	button.MouseButton1Click:Connect(callback)
+	updateCanvasSize() -- Update CanvasSize saat tombol ditambah
+end
+
+-- Fungsi untuk membuat TextBox
+local function createTextBox(name, placeholder, callback)
+	local textBox = Instance.new("TextBox")
+	textBox.Size = UDim2.new(0, 130, 0, 25)
+	textBox.PlaceholderText = placeholder
+	textBox.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
+	textBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+	textBox.Text = ""
+	textBox.Parent = scrollingFrame
+	textBox.FocusLost:Connect(function(enterPressed)
+		if enterPressed then
+			callback(textBox.Text)
+			textBox.Text = ""
+		end
+	end)
+	updateCanvasSize() -- Update CanvasSize saat TextBox ditambah
+end
+
+-- Label untuk menampilkan kecepatan dan ukuran
+local speedLabel = Instance.new("TextLabel")
+speedLabel.Size = UDim2.new(0, 130, 0, 20)
+speedLabel.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+speedLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+speedLabel.Text = "Speed: " .. moveSpeed
+speedLabel.Parent = scrollingFrame
+updateCanvasSize()
+
+local sizeLabel = Instance.new("TextLabel")
+sizeLabel.Size = UDim2.new(0, 130, 0, 20)
+sizeLabel.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+sizeLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+sizeLabel.Text = "Size: " .. partSize.X .. ", " .. partSize.Y .. ", " .. partSize.Z
+sizeLabel.Parent = scrollingFrame
+updateCanvasSize()
+
+-- Tombol Open/Close GUI
+local toggleButton = Instance.new("TextButton")
+toggleButton.Size = UDim2.new(0, 50, 0, 25)
+toggleButton.Position = UDim2.new(0, 10, 0, 10)
+toggleButton.Text = "Open"
+toggleButton.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
+toggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+toggleButton.Parent = screenGui
+toggleButton.MouseButton1Click:Connect(function()
+	frame.Visible = not frame.Visible
+	toggleButton.Text = frame.Visible and "Close" or "Open"
+end)
+
+-- Tombol Create Part
+createButton("CreatePart", "Create Part", function()
+	createPart()
+end)
+
+-- Tombol ↑ (Ke atas)
+createButton("MoveUp", "↑ Move Up", function()
+	if currentPart and not autoFollow then
+		local bodyVelocity = currentPart:FindFirstChildOfClass("BodyVelocity")
+		if bodyVelocity then
+			bodyVelocity.Velocity = Vector3.new(0, moveSpeed, 0)
+		end
+	end
+end)
+
+-- Tombol ↓ (Ke bawah)
+createButton("MoveDown", "↓ Move Down", function()
+	if currentPart and not autoFollow then
+		local bodyVelocity = currentPart:FindFirstChildOfClass("BodyVelocity")
+		if bodyVelocity then
+			bodyVelocity.Velocity = Vector3.new(0, -moveSpeed, 0)
+		end
+	end
+end)
+
+-- Tombol untuk menambah kecepatan
+createButton("IncreaseSpeed", "+ Speed", function()
+	moveSpeed = moveSpeed + speedIncrement
+	speedLabel.Text = "Speed: " .. moveSpeed
+end)
+
+-- Tombol untuk mengurangi kecepatan
+createButton("DecreaseSpeed", "- Speed", function()
+	moveSpeed = math.max(10, moveSpeed - speedIncrement)
+	speedLabel.Text = "Speed: " .. moveSpeed
+end)
+
+-- Tombol untuk ganti warna
+createButton("ChangeColor", "Change Color", function()
+	currentColorIndex = (currentColorIndex % #colors) + 1
+	if currentPart then
+		currentPart.BrickColor = colors[currentColorIndex]
+	end
+end)
+
+-- Tombol untuk Auto Follow
+createButton("AutoFollow", "Toggle Auto Follow", function()
+	autoFollow = not autoFollow
+	if currentPart then
+		if autoFollow then
+			local bodyVelocity = currentPart:FindFirstChildOfClass("BodyVelocity")
+			if bodyVelocity then
+				bodyVelocity:Destroy()
+			end
+			currentPart.Anchored = true
+		else
+			currentPart.Anchored = false
+			local bodyVelocity = Instance.new("BodyVelocity")
+			bodyVelocity.MaxForce = Vector3.new(0, math.huge, 0)
+			bodyVelocity.Velocity = Vector3.new(0, 0, 0)
+			bodyVelocity.Parent = currentPart
+		end
+	end
+end)
+
+-- TextBox untuk mengatur ukuran part
+createTextBox("SizeInput", "X,Y,Z", function(input)
+	local sizes = {}
+	for num in input:gmatch("%d+%.?%d*") do
+		table.insert(sizes, tonumber(num))
+	end
+	if #sizes == 3 then
+		partSize = Vector3.new(sizes[1], sizes[2], sizes[3])
+		sizeLabel.Text = "Size: " .. partSize.X .. ", " .. partSize.Y .. ", " .. partSize.Z
+		if currentPart then
+			currentPart.Size = partSize
+		end
+	end
+end)
+
+-- Handle respawn pemain
+player.CharacterAdded:Connect(function(newCharacter)
+	character = newCharacter
+	hrp = character:WaitForChild("HumanoidRootPart")
+	currentPart = nil
+	autoFollow = false
+end)
