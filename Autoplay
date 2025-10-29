@@ -12,7 +12,7 @@ local gui = Instance.new("ScreenGui")
 gui.Name = "SpawnExecutorGui"
 gui.Parent = CoreGui
 gui.ResetOnSpawn = false
-gui.IgnoreGuiInset = false -- Respect Roblox topbar boundaries
+gui.IgnoreGuiInset = false
 
 -- Drag Handler
 local function makeDraggable(frame)
@@ -44,8 +44,8 @@ end
 
 -- Main Frame
 local main = Instance.new("Frame")
-main.Size = UDim2.new(0, 100, 0, 100) -- Very small size
-main.Position = UDim2.new(0.5, -50, 0.5, -50) -- Centered
+main.Size = UDim2.new(0, 100, 0, 100)
+main.Position = UDim2.new(0.5, -50, 0.5, -50)
 main.BackgroundColor3 = Color3.fromRGB(20, 140, 255)
 main.BorderSizePixel = 0
 main.Visible = true
@@ -59,16 +59,15 @@ stroke.Color = Color3.fromRGB(255, 255, 255)
 stroke.Thickness = 1
 stroke.Transparency = 0.8
 
--- Open/Close Button (Standalone)
+-- Open/Close Button
 local openCloseBtn = Instance.new("TextButton")
 openCloseBtn.Size = UDim2.new(0, 30, 0, 30)
-openCloseBtn.Position = UDim2.new(0, 10, 0, 50) -- Below Roblox topbar
-openCloseBtn.Text = "❌"
-openCloseBtn.BackgroundColor3 = Color3.fromRGB(255, 80, 80) -- Red when open
+openCloseBtn.Position = UDim2.new(0, 10, 0, 50)
+openCloseBtn.Text = "Close"
+openCloseBtn.BackgroundColor3 = Color3.fromRGB(255, 80, 80)
 openCloseBtn.TextColor3 = Color3.new(1, 1, 1)
 openCloseBtn.Font = Enum.Font.GothamBold
 openCloseBtn.TextSize = 16
-openCloseBtn.TextScaled = false
 openCloseBtn.Visible = true
 openCloseBtn.Parent = gui
 Instance.new("UICorner", openCloseBtn).CornerRadius = UDim.new(0, 12)
@@ -82,21 +81,20 @@ local title = Instance.new("TextLabel")
 title.Size = UDim2.new(1, 0, 0, 20)
 title.Position = UDim2.new(0, 0, 0, 5)
 title.BackgroundTransparency = 1
-title.Text = "🌟 Set Spawn"
+title.Text = "Set Spawn"
 title.TextColor3 = Color3.new(1, 1, 1)
 title.Font = Enum.Font.GothamBold
 title.TextSize = 12
-title.TextScaled = false
 title.Parent = main
 
--- Scrolling Frame for Buttons
+-- Scrolling Frame
 local contentFrame = Instance.new("ScrollingFrame")
 contentFrame.Size = UDim2.new(0.9, 0, 0, 75)
 contentFrame.Position = UDim2.new(0.05, 0, 0, 20)
 contentFrame.BackgroundTransparency = 1
 contentFrame.ScrollBarThickness = 4
 contentFrame.ScrollBarImageColor3 = Color3.fromRGB(255, 160, 80)
-contentFrame.CanvasSize = UDim2.new(0, 0, 0, 165) -- 10 components * 15 + padding
+contentFrame.CanvasSize = UDim2.new(0, 0, 0, 180)
 contentFrame.Parent = main
 
 -- Edit Frame
@@ -121,7 +119,7 @@ editList.ScrollBarImageColor3 = Color3.fromRGB(255, 160, 80)
 editList.CanvasSize = UDim2.new(0, 0, 0, 0)
 editList.Parent = editFrame
 
--- Stored positions and state
+-- Stored Data
 local savedPositions = {}
 local isAutoPlaying = false
 local isRandomMode = false
@@ -131,18 +129,16 @@ local walkDelay = 0.4
 local markers = {}
 local beams = {}
 
--- Function to reset title after delay
+-- Reset Title
 local function resetTitle()
     task.wait(2)
-    title.Text = "🌟 Set Spawn"
+    title.Text = "Set Spawn"
 end
 
--- Function to update Edit Frame (with Teleport button)
+-- Update Edit Frame
 local function updateEditFrame()
     for _, child in ipairs(editList:GetChildren()) do
-        if child:IsA("Frame") then
-            child:Destroy()
-        end
+        if child:IsA("Frame") then child:Destroy() end
     end
     local yOffset = 0
     for i, pos in ipairs(savedPositions) do
@@ -153,11 +149,10 @@ local function updateEditFrame()
         frame.Parent = editList
 
         local label = Instance.new("TextLabel")
-        label.Size = UDim2.new(0.4, 0, 0, 20) -- Reduced width for two buttons
-        label.Position = UDim2.new(0, 0, 0, 0)
+        label.Size = UDim2.new(0.4, 0, 1, 0)
         label.BackgroundTransparency = 1
-        label.Text = string.format("Pos %d: %.1f,%.1f,%.1f", i, pos.X, pos.Y, pos.Z)
-        label.TextColor3 = Color3.new(1, 1, 1)
+        label.Text = string.format("P%d: %.1f", i, pos.X)
+        label.TextColor3 = Color3.new(1,1,1)
         label.Font = Enum.Font.Gotham
         label.TextSize = 10
         label.TextXAlignment = Enum.TextXAlignment.Left
@@ -166,42 +161,38 @@ local function updateEditFrame()
         local teleportBtn = Instance.new("TextButton")
         teleportBtn.Size = UDim2.new(0.3, -5, 0, 15)
         teleportBtn.Position = UDim2.new(0.4, 5, 0, 2)
-        teleportBtn.Text = "🚶"
+        teleportBtn.Text = "Go"
         teleportBtn.BackgroundColor3 = Color3.fromRGB(80, 200, 80)
-        teleportBtn.TextColor3 = Color3.new(1, 1, 1)
+        teleportBtn.TextColor3 = Color3.new(1,1,1)
         teleportBtn.Font = Enum.Font.GothamBold
         teleportBtn.TextSize = 10
         Instance.new("UICorner", teleportBtn).CornerRadius = UDim.new(0, 4)
-        local teleportStroke = Instance.new("UIStroke", teleportBtn)
-        teleportStroke.Color = Color3.fromRGB(255, 255, 255)
-        teleportStroke.Thickness = 1
-        teleportStroke.Transparency = 0.9
+        local tStroke = Instance.new("UIStroke", teleportBtn)
+        tStroke.Color = Color3.fromRGB(255,255,255)
+        tStroke.Thickness = 1
+        tStroke.Transparency = 0.9
         teleportBtn.Parent = frame
 
         local deleteBtn = Instance.new("TextButton")
         deleteBtn.Size = UDim2.new(0.3, -5, 0, 15)
         deleteBtn.Position = UDim2.new(0.7, 5, 0, 2)
-        deleteBtn.Text = "🗑️"
+        deleteBtn.Text = "Delete"
         deleteBtn.BackgroundColor3 = Color3.fromRGB(255, 80, 80)
-        deleteBtn.TextColor3 = Color3.new(1, 1, 1)
+        deleteBtn.TextColor3 = Color3.new(1,1,1)
         deleteBtn.Font = Enum.Font.GothamBold
         deleteBtn.TextSize = 10
         Instance.new("UICorner", deleteBtn).CornerRadius = UDim.new(0, 4)
-        local deleteStroke = Instance.new("UIStroke", deleteBtn)
-        deleteStroke.Color = Color3.fromRGB(255, 255, 255)
-        deleteStroke.Thickness = 1
-        deleteStroke.Transparency = 0.9
+        local dStroke = Instance.new("UIStroke", deleteBtn)
+        dStroke.Color = Color3.fromRGB(255,255,255)
+        dStroke.Thickness = 1
+        dStroke.Transparency = 0.9
         deleteBtn.Parent = frame
 
         teleportBtn.MouseButton1Click:Connect(function()
-            local character = LocalPlayer.Character
-            local hrp = character and character:FindFirstChild("HumanoidRootPart")
+            local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
             if hrp then
                 hrp.CFrame = CFrame.new(pos)
-                title.Text = "🚶 Teleported to Pos " .. i .. "!"
-                task.spawn(resetTitle)
-            else
-                title.Text = "❌ No HRP!"
+                title.Text = "Teleported!"
                 task.spawn(resetTitle)
             end
         end)
@@ -209,48 +200,41 @@ local function updateEditFrame()
         deleteBtn.MouseButton1Click:Connect(function()
             table.remove(savedPositions, i)
             updateEditFrame()
-            countLabel.Text = "🧮 Pos: " .. #savedPositions
-            title.Text = "🗑️ Pos Deleted!"
+            countLabel.Text = "Pos: " .. #savedPositions
+            title.Text = "Pos Deleted!"
             task.spawn(resetTitle)
-            -- Update markers and beams
+            -- Refresh visuals
+            for _, m in ipairs(markers) do m:Destroy() end
+            markers = {}
+            for _, b in ipairs(beams) do b:Destroy() end
+            beams = {}
             if showMarkers then
-                for _, marker in ipairs(markers) do
-                    marker:Destroy()
-                end
-                markers = {}
-                for _, pos in ipairs(savedPositions) do
-                    local part = Instance.new("Part")
-                    part.Size = Vector3.new(1, 1, 1)
-                    part.Position = pos
+                for _, p in ipairs(savedPositions) do
+                    local part = Instance.new("Part", workspace)
+                    part.Size = Vector3.new(1,1,1)
+                    part.Position = p
                     part.Anchored = true
                     part.CanCollide = false
                     part.Transparency = 0.5
-                    part.Color = Color3.fromRGB(255, 120, 50)
-                    part.Parent = game.Workspace
+                    part.Color = Color3.fromRGB(255,120,50)
                     table.insert(markers, part)
                 end
             end
             if showPath then
-                for _, beam in ipairs(beams) do
-                    beam:Destroy()
-                end
-                beams = {}
                 for i = 1, #savedPositions - 1 do
-                    local beam = Instance.new("Beam")
+                    local beam = Instance.new("Beam", workspace)
                     beam.Segments = 1
                     beam.Width0 = 0.2
                     beam.Width1 = 0.2
-                    beam.Color = ColorSequence.new(Color3.fromRGB(255, 120, 50))
+                    beam.Color = ColorSequence.new(Color3.fromRGB(255,120,50))
                     beam.Transparency = NumberSequence.new(0.5)
-                    local attachment0 = Instance.new("Attachment")
-                    local attachment1 = Instance.new("Attachment")
-                    attachment0.Position = savedPositions[i]
-                    attachment1.Position = savedPositions[i + 1]
-                    attachment0.Parent = game.Workspace.Terrain
-                    attachment1.Parent = game.Workspace.Terrain
-                    beam.Attachment0 = attachment0
-                    beam.Attachment1 = attachment1
-                    beam.Parent = game.Workspace
+                    local a0, a1 = Instance.new("Attachment"), Instance.new("Attachment")
+                    a0.Position = savedPositions[i]
+                    a1.Position = savedPositions[i+1]
+                    a0.Parent = workspace.Terrain
+                    a1.Parent = workspace.Terrain
+                    beam.Attachment0 = a0
+                    beam.Attachment1 = a1
                     table.insert(beams, beam)
                 end
             end
@@ -261,478 +245,388 @@ local function updateEditFrame()
     editList.CanvasSize = UDim2.new(0, 0, 0, yOffset)
 end
 
--- Add Position Button
+-- Buttons
 local addBtn = Instance.new("TextButton")
 addBtn.Size = UDim2.new(1, -10, 0, 15)
 addBtn.Position = UDim2.new(0, 5, 0, 0)
-addBtn.Text = "➕ Add Pos"
+addBtn.Text = "Add Pos"
 addBtn.BackgroundColor3 = Color3.fromRGB(50, 160, 255)
-addBtn.TextColor3 = Color3.new(1, 1, 1)
+addBtn.TextColor3 = Color3.new(1,1,1)
 addBtn.Font = Enum.Font.GothamBold
 addBtn.TextSize = 10
-addBtn.TextScaled = false
 Instance.new("UICorner", addBtn).CornerRadius = UDim.new(0, 8)
-local addStroke = Instance.new("UIStroke", addBtn)
-addStroke.Color = Color3.fromRGB(255, 255, 255)
-addStroke.Thickness = 1
-addStroke.Transparency = 0.9
+local aStroke = Instance.new("UIStroke", addBtn)
+aStroke.Color = Color3.fromRGB(255,255,255)
+aStroke.Thickness = 1
+aStroke.Transparency = 0.9
 addBtn.Parent = contentFrame
 
--- Copy Script Button
 local copyBtn = Instance.new("TextButton")
 copyBtn.Size = UDim2.new(1, -10, 0, 15)
 copyBtn.Position = UDim2.new(0, 5, 0, 15)
-copyBtn.Text = "📋 Copy Script"
+copyBtn.Text = "Copy Script"
 copyBtn.BackgroundColor3 = Color3.fromRGB(30, 140, 255)
-copyBtn.TextColor3 = Color3.new(1, 1, 1)
+copyBtn.TextColor3 = Color3.new(1,1,1)
 copyBtn.Font = Enum.Font.GothamBold
 copyBtn.TextSize = 10
-copyBtn.TextScaled = false
 Instance.new("UICorner", copyBtn).CornerRadius = UDim.new(0, 8)
-local copyStroke = Instance.new("UIStroke", copyBtn)
-copyStroke.Color = Color3.fromRGB(255, 255, 255)
-copyStroke.Thickness = 1
-copyStroke.Transparency = 0.9
+local cStroke = Instance.new("UIStroke", copyBtn)
+cStroke.Color = Color3.fromRGB(255,255,255)
+cStroke.Thickness = 1
+cStroke.Transparency = 0.9
 copyBtn.Parent = contentFrame
 
--- Auto Play Button
+-- FITUR BARU: Copy Full Vector3.new (Tanpa Header & Komentar)
+local copyVectorBtn = Instance.new("TextButton")
+copyVectorBtn.Size = UDim2.new(1, -10, 0, 15)
+copyVectorBtn.Position = UDim2.new(0, 5, 0, 30)
+copyVectorBtn.Text = "Copy Vector3"
+copyVectorBtn.BackgroundColor3 = Color3.fromRGB(20, 130, 255)
+copyVectorBtn.TextColor3 = Color3.new(1,1,1)
+copyVectorBtn.Font = Enum.Font.GothamBold
+copyVectorBtn.TextSize = 10
+Instance.new("UICorner", copyVectorBtn).CornerRadius = UDim.new(0, 8)
+local cvStroke = Instance.new("UIStroke", copyVectorBtn)
+cvStroke.Color = Color3.fromRGB(255,255,255)
+cvStroke.Thickness = 1
+cvStroke.Transparency = 0.9
+copyVectorBtn.Parent = contentFrame
+
 local autoPlayBtn = Instance.new("TextButton")
 autoPlayBtn.Size = UDim2.new(1, -10, 0, 15)
-autoPlayBtn.Position = UDim2.new(0, 5, 0, 30)
-autoPlayBtn.Text = "▶️ Auto Play"
+autoPlayBtn.Position = UDim2.new(0, 5, 0, 45)
+autoPlayBtn.Text = "Auto Play"
 autoPlayBtn.BackgroundColor3 = Color3.fromRGB(40, 150, 255)
-autoPlayBtn.TextColor3 = Color3.new(1, 1, 1)
+autoPlayBtn.TextColor3 = Color3.new(1,1,1)
 autoPlayBtn.Font = Enum.Font.GothamBold
 autoPlayBtn.TextSize = 10
-autoPlayBtn.TextScaled = false
 Instance.new("UICorner", autoPlayBtn).CornerRadius = UDim.new(0, 8)
-local autoPlayStroke = Instance.new("UIStroke", autoPlayBtn)
-autoPlayStroke.Color = Color3.fromRGB(255, 255, 255)
-autoPlayStroke.Thickness = 1
-autoPlayStroke.Transparency = 0.9
+local apStroke = Instance.new("UIStroke", autoPlayBtn)
+apStroke.Color = Color3.fromRGB(255,255,255)
+apStroke.Thickness = 1
+apStroke.Transparency = 0.9
 autoPlayBtn.Parent = contentFrame
 
--- Clear Positions Button
 local clearBtn = Instance.new("TextButton")
 clearBtn.Size = UDim2.new(1, -10, 0, 15)
-clearBtn.Position = UDim2.new(0, 5, 0, 45)
-clearBtn.Text = "🗑️ Clear Pos"
+clearBtn.Position = UDim2.new(0, 5, 0, 60)
+clearBtn.Text = "Clear Pos"
 clearBtn.BackgroundColor3 = Color3.fromRGB(10, 120, 255)
-clearBtn.TextColor3 = Color3.new(1, 1, 1)
+clearBtn.TextColor3 = Color3.new(1,1,1)
 clearBtn.Font = Enum.Font.GothamBold
 clearBtn.TextSize = 10
-clearBtn.TextScaled = false
 Instance.new("UICorner", clearBtn).CornerRadius = UDim.new(0, 8)
-local clearStroke = Instance.new("UIStroke", clearBtn)
-clearStroke.Color = Color3.fromRGB(255, 255, 255)
-clearStroke.Thickness = 1
-clearStroke.Transparency = 0.9
+local clStroke = Instance.new("UIStroke", clearBtn)
+clStroke.Color = Color3.fromRGB(255,255,255)
+clStroke.Thickness = 1
+clStroke.Transparency = 0.9
 clearBtn.Parent = contentFrame
 
--- Delay TextBox (Fitur 1)
 local delayBox = Instance.new("TextBox")
 delayBox.Size = UDim2.new(1, -10, 0, 15)
-delayBox.Position = UDim2.new(0, 5, 0, 60)
+delayBox.Position = UDim2.new(0, 5, 0, 75)
 delayBox.BackgroundColor3 = Color3.fromRGB(50, 160, 255)
-delayBox.TextColor3 = Color3.new(1, 1, 1)
+delayBox.TextColor3 = Color3.new(1,1,1)
 delayBox.Font = Enum.Font.Gotham
 delayBox.TextSize = 10
-delayBox.PlaceholderText = "🕒 Jeda (s)"
+delayBox.PlaceholderText = "Delay (s)"
 delayBox.Text = "0.4"
 Instance.new("UICorner", delayBox).CornerRadius = UDim.new(0, 8)
-local delayStroke = Instance.new("UIStroke", delayBox)
-delayStroke.Color = Color3.fromRGB(255, 255, 255)
-delayStroke.Thickness = 1
-delayStroke.Transparency = 0.9
+local dStroke = Instance.new("UIStroke", delayBox)
+dStroke.Color = Color3.fromRGB(255,255,255)
+dStroke.Thickness = 1
+dStroke.Transparency = 0.9
 delayBox.Parent = contentFrame
 
--- Mode Toggle Button (Fitur 3)
 local modeBtn = Instance.new("TextButton")
 modeBtn.Size = UDim2.new(1, -10, 0, 15)
-modeBtn.Position = UDim2.new(0, 5, 0, 75)
-modeBtn.Text = "🔄 Mode: Urut"
+modeBtn.Position = UDim2.new(0, 5, 0, 90)
+modeBtn.Text = "Mode: Urut"
 modeBtn.BackgroundColor3 = Color3.fromRGB(60, 170, 255)
-modeBtn.TextColor3 = Color3.new(1, 1, 1)
+modeBtn.TextColor3 = Color3.new(1,1,1)
 modeBtn.Font = Enum.Font.GothamBold
 modeBtn.TextSize = 10
-modeBtn.TextScaled = false
 Instance.new("UICorner", modeBtn).CornerRadius = UDim.new(0, 8)
-local modeStroke = Instance.new("UIStroke", modeBtn)
-modeStroke.Color = Color3.fromRGB(255, 255, 255)
-modeStroke.Thickness = 1
-modeStroke.Transparency = 0.9
+local mStroke = Instance.new("UIStroke", modeBtn)
+mStroke.Color = Color3.fromRGB(255,255,255)
+mStroke.Thickness = 1
+mStroke.Transparency = 0.9
 modeBtn.Parent = contentFrame
 
--- Markers Button (Fitur 4)
 local markerBtn = Instance.new("TextButton")
 markerBtn.Size = UDim2.new(1, -10, 0, 15)
-markerBtn.Position = UDim2.new(0, 5, 0, 90)
-markerBtn.Text = "🟠 Show Markers"
+markerBtn.Position = UDim2.new(0, 5, 0, 105)
+markerBtn.Text = "Show Markers"
 markerBtn.BackgroundColor3 = Color3.fromRGB(70, 180, 255)
-markerBtn.TextColor3 = Color3.new(1, 1, 1)
+markerBtn.TextColor3 = Color3.new(1,1,1)
 markerBtn.Font = Enum.Font.GothamBold
 markerBtn.TextSize = 10
-markerBtn.TextScaled = false
 Instance.new("UICorner", markerBtn).CornerRadius = UDim.new(0, 8)
-local markerStroke = Instance.new("UIStroke", markerBtn)
-markerStroke.Color = Color3.fromRGB(255, 255, 255)
-markerStroke.Thickness = 1
-markerStroke.Transparency = 0.9
+local mkStroke = Instance.new("UIStroke", markerBtn)
+mkStroke.Color = Color3.fromRGB(255,255,255)
+mkStroke.Thickness = 1
+mkStroke.Transparency = 0.9
 markerBtn.Parent = contentFrame
 
--- Edit Positions Button (Fitur 5)
 local editBtn = Instance.new("TextButton")
 editBtn.Size = UDim2.new(1, -10, 0, 15)
-editBtn.Position = UDim2.new(0, 5, 0, 105)
-editBtn.Text = "✏️ Edit Pos"
+editBtn.Position = UDim2.new(0, 5, 0, 120)
+editBtn.Text = "Edit Pos"
 editBtn.BackgroundColor3 = Color3.fromRGB(80, 190, 255)
-editBtn.TextColor3 = Color3.new(1, 1, 1)
+editBtn.TextColor3 = Color3.new(1,1,1)
 editBtn.Font = Enum.Font.GothamBold
 editBtn.TextSize = 10
-editBtn.TextScaled = false
 Instance.new("UICorner", editBtn).CornerRadius = UDim.new(0, 8)
-local editBtnStroke = Instance.new("UIStroke", editBtn)
-editBtnStroke.Color = Color3.fromRGB(255, 255, 255)
-editBtnStroke.Thickness = 1
-editBtnStroke.Transparency = 0.9
+local eStroke = Instance.new("UIStroke", editBtn)
+eStroke.Color = Color3.fromRGB(255,255,255)
+eStroke.Thickness = 1
+eStroke.Transparency = 0.9
 editBtn.Parent = contentFrame
 
--- Path Visualizer Button (Fitur 7)
 local pathBtn = Instance.new("TextButton")
 pathBtn.Size = UDim2.new(1, -10, 0, 15)
-pathBtn.Position = UDim2.new(0, 5, 0, 120)
-pathBtn.Text = "🛤️ Show Path"
+pathBtn.Position = UDim2.new(0, 5, 0, 135)
+pathBtn.Text = "Show Path"
 pathBtn.BackgroundColor3 = Color3.fromRGB(90, 200, 255)
-pathBtn.TextColor3 = Color3.new(1, 1, 1)
+pathBtn.TextColor3 = Color3.new(1,1,1)
 pathBtn.Font = Enum.Font.GothamBold
 pathBtn.TextSize = 10
-pathBtn.TextScaled = false
 Instance.new("UICorner", pathBtn).CornerRadius = UDim.new(0, 8)
-local pathStroke = Instance.new("UIStroke", pathBtn)
-pathStroke.Color = Color3.fromRGB(255, 255, 255)
-pathStroke.Thickness = 1
-pathStroke.Transparency = 0.9
+local pStroke = Instance.new("UIStroke", pathBtn)
+pStroke.Color = Color3.fromRGB(255,255,255)
+pStroke.Thickness = 1
+pStroke.Transparency = 0.9
 pathBtn.Parent = contentFrame
 
--- Counter Label
 local countLabel = Instance.new("TextLabel")
 countLabel.Size = UDim2.new(1, -10, 0, 15)
-countLabel.Position = UDim2.new(0, 5, 0, 135)
+countLabel.Position = UDim2.new(0, 5, 0, 150)
 countLabel.BackgroundTransparency = 1
+countLabel.Text = "Pos: 0"
 countLabel.TextColor3 = Color3.fromRGB(200, 220, 255)
 countLabel.Font = Enum.Font.GothamSemibold
 countLabel.TextSize = 10
-countLabel.TextScaled = false
-countLabel.Text = "🧮 Pos: 0"
 countLabel.Parent = contentFrame
 
--- Logic for Open/Close Button
+-- Open/Close Logic
 local isOpen = true
 openCloseBtn.MouseButton1Click:Connect(function()
     isOpen = not isOpen
     main.Visible = isOpen
     editFrame.Visible = false
-    openCloseBtn.Text = isOpen and "❌" or "➕"
-    openCloseBtn.BackgroundColor3 = isOpen and Color3.fromRGB(255, 80, 80) or Color3.fromRGB(80, 200, 80)
+    openCloseBtn.Text = isOpen and "Close" or "Open"
+    openCloseBtn.BackgroundColor3 = isOpen and Color3.fromRGB(255,80,80) or Color3.fromRGB(80,200,80)
 end)
 
--- Logic for Add Button
+-- Add Position
 addBtn.MouseButton1Click:Connect(function()
-    local character = LocalPlayer.Character
-    if not character then
-        title.Text = "❌ No Character!"
-        task.spawn(resetTitle)
-        return
-    end
-    local hrp = character:FindFirstChild("HumanoidRootPart")
+    local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
     if hrp then
         table.insert(savedPositions, hrp.Position)
-        countLabel.Text = "🧮 Pos: " .. #savedPositions
-        title.Text = "✅ Pos Added!"
+        countLabel.Text = "Pos: " .. #savedPositions
+        title.Text = "Pos Added!"
         updateEditFrame()
         if showMarkers then
-            local part = Instance.new("Part")
-            part.Size = Vector3.new(1, 1, 1)
-            part.Position = hrp.Position
-            part.Anchored = true
-            part.CanCollide = false
-            part.Transparency = 0.5
-            part.Color = Color3.fromRGB(255, 120, 50)
-            part.Parent = game.Workspace
-            table.insert(markers, part)
-        end
-        if showPath and #savedPositions > 1 then
-            local beam = Instance.new("Beam")
-            beam.Segments = 1
-            beam.Width0 = 0.2
-            beam.Width1 = 0.2
-            beam.Color = ColorSequence.new(Color3.fromRGB(255, 120, 50))
-            beam.Transparency = NumberSequence.new(0.5)
-            local attachment0 = Instance.new("Attachment")
-            local attachment1 = Instance.new("Attachment")
-            attachment0.Position = savedPositions[#savedPositions - 1]
-            attachment1.Position = savedPositions[#savedPositions]
-            attachment0.Parent = game.Workspace.Terrain
-            attachment1.Parent = game.Workspace.Terrain
-            beam.Attachment0 = attachment0
-            beam.Attachment1 = attachment1
-            beam.Parent = game.Workspace
-            table.insert(beams, beam)
+            local p = Instance.new("Part", workspace)
+            p.Size = Vector3.new(1,1,1)
+            p.Position = hrp.Position
+            p.Anchored = true
+            p.CanCollide = false
+            p.Transparency = 0.5
+            p.Color = Color3.fromRGB(255,120,50)
+            table.insert(markers, p)
         end
         task.spawn(resetTitle)
     else
-        title.Text = "❌ No HRP!"
+        title.Text = "No HRP!"
         task.spawn(resetTitle)
     end
 end)
 
--- Logic for Copy Button
+-- Copy Script
 copyBtn.MouseButton1Click:Connect(function()
-    local code = "-- Generated by @TheMugenKing\nlocal hrp = game:GetService('Players').LocalPlayer.Character:WaitForChild('HumanoidRootPart')\nlocal SpawnList = {\n"
+    local code = "local hrp = game.Players.LocalPlayer.Character:WaitForChild('HumanoidRootPart')\nlocal list = {\n"
     for _, pos in ipairs(savedPositions) do
         code = code .. string.format("    Vector3.new(%.2f, %.2f, %.2f),\n", pos.X, pos.Y, pos.Z)
     end
-    code = code .. "}\nfor _, pos in ipairs(SpawnList) do task.wait(0.4) hrp.CFrame = CFrame.new(pos) end"
-    local success, err = pcall(function()
-        setclipboard(code)
-    end)
-    if success then
-        title.Text = "✅ Copied!"
-    else
-        title.Text = "❌ Copy Error!"
-        warn("Clipboard error: " .. tostring(err))
-    end
+    code = code .. "}\nfor _, pos in ipairs(list) do task.wait(0.4) hrp.CFrame = CFrame.new(pos) end"
+    pcall(setclipboard, code)
+    title.Text = "Script Copied!"
     task.spawn(resetTitle)
 end)
 
--- Logic for Auto Play Button (Auto Walk)
+-- Copy Vector3.new (Hanya List, Tanpa Komentar)
+copyVectorBtn.MouseButton1Click:Connect(function()
+    if #savedPositions == 0 then
+        title.Text = "No Pos!"
+        task.spawn(resetTitle)
+        return
+    end
+    local code = ""
+    for _, pos in ipairs(savedPositions) do
+        code = code .. string.format("Vector3.new(%.3f, %.3f, %.3f)\n", pos.X, pos.Y, pos.Z)
+    end
+    pcall(setclipboard, code)
+    title.Text = "Vector3 Copied!"
+    task.spawn(resetTitle)
+end)
+
+-- Auto Play
 local autoPlayConnection
 autoPlayBtn.MouseButton1Click:Connect(function()
     if isAutoPlaying then
-        -- Stop Auto Play
-        if autoPlayConnection then
-            autoPlayConnection:Disconnect()
-            autoPlayConnection = nil
-        end
+        if autoPlayConnection then autoPlayConnection:Disconnect() end
         isAutoPlaying = false
-        autoPlayBtn.Text = "▶️ Auto Play"
-        autoPlayBtn.BackgroundColor3 = Color3.fromRGB(40, 150, 255)
-        title.Text = "⏹️ Stopped!"
+        autoPlayBtn.Text = "Auto Play"
+        autoPlayBtn.BackgroundColor3 = Color3.fromRGB(40,150,255)
+        title.Text = "Stopped!"
         task.spawn(resetTitle)
-    else
-        -- Start Auto Play
-        local character = LocalPlayer.Character
-        if not character then
-            title.Text = "❌ No Character!"
-            task.spawn(resetTitle)
-            return
-        end
-        local humanoid = character:FindFirstChild("Humanoid")
-        local hrp = character:FindFirstChild("HumanoidRootPart")
-        if not humanoid or not hrp then
-            title.Text = "❌ No Humanoid/HRP!"
-            task.spawn(resetTitle)
-            return
-        end
-        if #savedPositions == 0 then
-            title.Text = "❌ No Positions!"
-            task.spawn(resetTitle)
-            return
-        end
-        isAutoPlaying = true
-        autoPlayBtn.Text = "⏹️ Stop"
-        autoPlayBtn.BackgroundColor3 = Color3.fromRGB(255, 80, 80)
-        title.Text = "▶️ Auto Walk!"
-        task.spawn(resetTitle)
-        autoPlayConnection = RunService.Heartbeat:Connect(function()
-            if isAutoPlaying and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-                local humanoid = LocalPlayer.Character.Humanoid
-                local indices = isRandomMode and {} or nil
-                if isRandomMode then
-                    for i = 1, #savedPositions do
-                        indices[i] = i
-                    end
-                    for i = #indices, 2, -1 do
-                        local j = math.random(1, i)
-                        indices[i], indices[j] = indices[j], indices[i]
-                    end
-                end
-                local index = 1
-                while isAutoPlaying do
-                    local posIndex = isRandomMode and indices[index] or index
-                    local pos = savedPositions[posIndex]
-                    if not pos then break end
-                    humanoid:MoveTo(pos)
-                    local reached = humanoid.MoveToFinished:Wait()
-                    if not reached or not isAutoPlaying then break end
-                    task.wait(walkDelay)
-                    index = index + 1
-                    if index > #savedPositions then
-                        index = 1
-                        if isRandomMode then
-                            for i = #indices, 2, -1 do
-                                local j = math.random(1, i)
-                                indices[i], indices[j] = indices[j], indices[i]
-                            end
-                        end
-                    end
-                end
-            else
-                -- Stop if character, Humanoid, or HRP is missing
-                if autoPlayConnection then
-                    autoPlayConnection:Disconnect()
-                    autoPlayConnection = nil
-                end
-                isAutoPlaying = false
-                autoPlayBtn.Text = "▶️ Auto Play"
-                autoPlayBtn.BackgroundColor3 = Color3.fromRGB(40, 150, 255)
-                title.Text = "❌ Character Lost!"
-                task.spawn(resetTitle)
-            end
-        end)
+        return
     end
+
+    local char = LocalPlayer.Character
+    local hum = char and char:FindFirstChild("Humanoid")
+    local hrp = char and char:FindFirstChild("HumanoidRootPart")
+    if not hum or not hrp or #savedPositions == 0 then
+        title.Text = "Error!"
+        task.spawn(resetTitle)
+        return
+    end
+
+    isAutoPlaying = true
+    autoPlayBtn.Text = "Stop"
+    autoPlayBtn.BackgroundColor3 = Color3.fromRGB(255,80,80)
+    title.Text = "Walking..."
+    task.spawn(resetTitle)
+
+    autoPlayConnection = RunService.Heartbeat:Connect(function()
+        if not isAutoPlaying or not LocalPlayer.Character or not LocalPlayer.Character:FindFirstChild("Humanoid") then
+            isAutoPlaying = false
+            if autoPlayConnection then autoPlayConnection:Disconnect() end
+            autoPlayBtn.Text = "Auto Play"
+            autoPlayBtn.BackgroundColor3 = Color3.fromRGB(40,150,255)
+            return
+        end
+
+        local indices = {}
+        if isRandomMode then
+            for i = 1, #savedPositions do indices[i] = i end
+            for i = #indices, 2, -1 do
+                local j = math.random(1, i)
+                indices[i], indices[j] = indices[j], indices[i]
+            end
+        end
+
+        local i = 1
+        while isAutoPlaying and i <= #savedPositions do
+            local idx = isRandomMode and indices[i] or i
+            hum:MoveTo(savedPositions[idx])
+            hum.MoveToFinished:Wait()
+            task.wait(walkDelay)
+            i += 1
+        end
+    end)
 end)
 
--- Logic for Clear Button
+-- Clear
 clearBtn.MouseButton1Click:Connect(function()
-    if isAutoPlaying then
-        if autoPlayConnection then
-            autoPlayConnection:Disconnect()
-            autoPlayConnection = nil
-        end
-        isAutoPlaying = false
-        autoPlayBtn.Text = "▶️ Auto Play"
-        autoPlayBtn.BackgroundColor3 = Color3.fromRGB(40, 150, 255)
-    end
     savedPositions = {}
-    for _, marker in ipairs(markers) do
-        marker:Destroy()
-    end
-    markers = {}
-    for _, beam in ipairs(beams) do
-        beam:Destroy()
-    end
-    beams = {}
-    countLabel.Text = "🧮 Pos: 0"
+    for _, m in ipairs(markers) do m:Destroy() end
+    for _, b in ipairs(beams) do b:Destroy() end
+    markers, beams = {}, {}
+    countLabel.Text = "Pos: 0"
     updateEditFrame()
-    title.Text = "🗑️ Cleared!"
+    title.Text = "Cleared!"
     task.spawn(resetTitle)
 end)
 
--- Logic for Delay TextBox (Fitur 1)
-delayBox.FocusLost:Connect(function(enterPressed)
-    if enterPressed then
-        local num = tonumber(delayBox.Text)
-        if num and num >= 0.1 and num <= 5 then
-            walkDelay = num
-            title.Text = "🕒 Jeda: " .. num .. "s!"
+-- Delay
+delayBox.FocusLost:Connect(function(enter)
+    if enter then
+        local n = tonumber(delayBox.Text)
+        if n and n >= 0.1 and n <= 5 then
+            walkDelay = n
+            title.Text = "Delay: " .. n .. "s"
         else
-            title.Text = "❌ Jeda Invalid!"
+            title.Text = "Invalid!"
         end
         task.spawn(resetTitle)
     end
 end)
 
--- Logic for Mode Button (Fitur 3)
+-- Mode
 modeBtn.MouseButton1Click:Connect(function()
     isRandomMode = not isRandomMode
-    modeBtn.Text = isRandomMode and "🔄 Mode: Acak" or "🔄 Mode: Urut"
-    title.Text = isRandomMode and "🔄 Mode Acak!" or "🔄 Mode Urut!"
+    modeBtn.Text = isRandomMode and "Mode: Acak" or "Mode: Urut"
+    title.Text = isRandomMode and "Random!" or "Sequential!"
     task.spawn(resetTitle)
 end)
 
--- Logic for Markers Button (Fitur 4)
+-- Markers
 markerBtn.MouseButton1Click:Connect(function()
     showMarkers = not showMarkers
-    markerBtn.Text = showMarkers and "🟠 Hide Markers" or "🟠 Show Markers"
-    title.Text = showMarkers and "🟠 Markers Shown!" or "🟠 Markers Hidden!"
+    markerBtn.Text = showMarkers and "Hide Markers" or "Show Markers"
     if showMarkers then
         for _, pos in ipairs(savedPositions) do
-            local part = Instance.new("Part")
-            part.Size = Vector3.new(1, 1, 1)
-            part.Position = pos
-            part.Anchored = true
-            part.CanCollide = false
-            part.Transparency = 0.5
-            part.Color = Color3.fromRGB(255, 120, 50)
-            part.Parent = game.Workspace
-            table.insert(markers, part)
+            local p = Instance.new("Part", workspace)
+            p.Size = Vector3.new(1,1,1)
+            p.Position = pos
+            p.Anchored = true
+            p.CanCollide = false
+            p.Transparency = 0.5
+            p.Color = Color3.fromRGB(255,120,50)
+            table.insert(markers, p)
         end
     else
-        for _, marker in ipairs(markers) do
-            marker:Destroy()
-        end
+        for _, m in ipairs(markers) do m:Destroy() end
         markers = {}
     end
+    title.Text = showMarkers and "Markers On!" or "Markers Off!"
     task.spawn(resetTitle)
 end)
 
--- Logic for Edit Button (Fitur 5)
+-- Edit
 editBtn.MouseButton1Click:Connect(function()
     editFrame.Visible = not editFrame.Visible
-    title.Text = editFrame.Visible and "✏️ Editing Pos!" or "🌟 Set Spawn"
+    title.Text = editFrame.Visible and "Editing..." or "Set Spawn"
 end)
 
--- Logic for Path Button (Fitur 7)
+-- Path
 pathBtn.MouseButton1Click:Connect(function()
     showPath = not showPath
-    pathBtn.Text = showPath and "🛤️ Hide Path" or "🛤️ Show Path"
-    title.Text = showPath and "🛤️ Path Shown!" or "🛤️ Path Hidden!"
+    pathBtn.Text = showPath and "Hide Path" or "Show Path"
     if showPath then
         for i = 1, #savedPositions - 1 do
-            local beam = Instance.new("Beam")
-            beam.Segments = 1
+            local beam = Instance.new("Beam", workspace)
             beam.Width0 = 0.2
             beam.Width1 = 0.2
-            beam.Color = ColorSequence.new(Color3.fromRGB(255, 120, 50))
+            beam.Color = ColorSequence.new(Color3.fromRGB(255,120,50))
             beam.Transparency = NumberSequence.new(0.5)
-            local attachment0 = Instance.new("Attachment")
-            local attachment1 = Instance.new("Attachment")
-            attachment0.Position = savedPositions[i]
-            attachment1.Position = savedPositions[i + 1]
-            attachment0.Parent = game.Workspace.Terrain
-            attachment1.Parent = game.Workspace.Terrain
-            beam.Attachment0 = attachment0
-            beam.Attachment1 = attachment1
-            beam.Parent = game.Workspace
+            local a0, a1 = Instance.new("Attachment"), Instance.new("Attachment")
+            a0.Position = savedPositions[i]
+            a1.Position = savedPositions[i+1]
+            a0.Parent = workspace.Terrain
+            a1.Parent = workspace.Terrain
+            beam.Attachment0 = a0
+            beam.Attachment1 = a1
             table.insert(beams, beam)
         end
     else
-        for _, beam in ipairs(beams) do
-            beam:Destroy()
-        end
+        for _, b in ipairs(beams) do b:Destroy() end
         beams = {}
     end
+    title.Text = showPath and "Path On!" or "Path Off!"
     task.spawn(resetTitle)
 end)
 
--- Hover Effect for Buttons
-local function addHoverEffect(button)
-    local original = button.BackgroundColor3
-    button.MouseEnter:Connect(function()
-        button.BackgroundColor3 = original:Lerp(Color3.new(1, 1, 1), 0.2)
-    end)
-    button.MouseLeave:Connect(function()
-        button.BackgroundColor3 = original
-    end)
+-- Hover Effect
+local function hover(btn)
+    local orig = btn.BackgroundColor3
+    btn.MouseEnter:Connect(function() btn.BackgroundColor3 = orig:Lerp(Color3.new(1,1,1), 0.2) end)
+    btn.MouseLeave:Connect(function() btn.BackgroundColor3 = orig end)
 end
-for _, btn in ipairs({addBtn, copyBtn, autoPlayBtn, clearBtn, modeBtn, markerBtn, editBtn, pathBtn, openCloseBtn}) do
-    addHoverEffect(btn)
+for _, b in {addBtn, copyBtn, copyVectorBtn, autoPlayBtn, clearBtn, modeBtn, markerBtn, editBtn, pathBtn, openCloseBtn} do
+    hover(b)
 end
--- Add hover effect to Teleport and Delete buttons in Edit Frame
-local function addHoverEffectToEditButtons()
-    for _, child in ipairs(editList:GetChildren()) do
-        if child:IsA("Frame") then
-            for _, btn in ipairs(child:GetChildren()) do
-                if btn:IsA("TextButton") then
-                    addHoverEffect(btn)
-                end
-            end
-        end
-    end
-end
-editList.ChildAdded:Connect(function()
-    addHoverEffectToEditButtons()
-end)
 
-print("✅ GUI Executor Loaded")
+print("GUI + Copy Vector3 Loaded!")
