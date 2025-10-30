@@ -1,5 +1,5 @@
 --// Gui Executor: Set Spawn (100x100 + Cute Blue Premium Theme + Auto Walk)
--- Created by TheMugenKing, Enhanced & Fixed
+-- Created by TheMugenKing, Enhanced & Fixed V2
 
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
@@ -66,7 +66,10 @@ openCloseBtn.TextColor3 = Color3.new(1, 1, 1)
 openCloseBtn.Font = Enum.Font.GothamBold
 openCloseBtn.TextSize = 16
 openCloseBtn.Parent = gui
-Instance.new("UICorner", openCloseBtn).Corner rivRadius = UDim.new(0, 12)
+
+-- FIXED: CornerRadius typo
+Instance.new("UICorner", openCloseBtn).CornerRadius = UDim.new(0, 12)
+
 local openCloseStroke = Instance.new("UIStroke", openCloseBtn)
 openCloseStroke.Color = Color3.fromRGB(255, 255, 255)
 openCloseStroke.Thickness = 1
@@ -271,7 +274,7 @@ cStroke.Thickness = 1
 cStroke.Transparency = 0.9
 copyBtn.Parent = contentFrame
 
--- FIXED: Copy Vector3 with comma at end of EVERY line
+-- Copy Vector3 with comma at end of every line
 local copyVectorBtn = Instance.new("TextButton")
 copyVectorBtn.Size = UDim2.new(1, -10, 0, 15)
 copyVectorBtn.Position = UDim2.new(0, 5, 0, 30)
@@ -450,7 +453,7 @@ copyBtn.MouseButton1Click:Connect(function()
     task.spawn(resetTitle)
 end)
 
--- FIXED: Copy Vector3 with comma at end of every line
+-- Copy Vector3 with comma at end of every line
 copyVectorBtn.MouseButton1Click:Connect(function()
     if #savedPositions == 0 then
         title.Text = "No Pos!"
@@ -618,7 +621,7 @@ pathBtn.MouseButton1Click:Connect(function()
     task.spawn(resetTitle)
 end)
 
--- Hover
+-- Hover Effect
 local function hover(btn)
     local orig = btn.BackgroundColor3
     btn.MouseEnter:Connect(function() btn.BackgroundColor3 = orig:Lerp(Color3.new(1,1,1), 0.2) end)
@@ -628,4 +631,4 @@ for _, b in {addBtn, copyBtn, copyVectorBtn, autoPlayBtn, clearBtn, modeBtn, mar
     hover(b)
 end
 
-print("GUI Executor + Fixed Copy Vector3 Loaded!")
+print("GUI Executor + Fixed Copy Vector3 + No Errors!")
