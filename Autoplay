@@ -1,5 +1,5 @@
---// Gui Executor: Set Spawn (Very Small 100x100 + Cute Blue Premium Theme with Auto Walk)
--- Created by TheMugenKing, Enhanced for Clean & Cool Design
+--// Gui Executor: Set Spawn (100x100 + Cute Blue Premium Theme + Auto Walk)
+-- Created by TheMugenKing, Enhanced & Fixed
 
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
@@ -7,7 +7,7 @@ local CoreGui = game:GetService("CoreGui")
 local RunService = game:GetService("RunService")
 local LocalPlayer = Players.LocalPlayer
 
--- GUI Initialization
+-- GUI
 local gui = Instance.new("ScreenGui")
 gui.Name = "SpawnExecutorGui"
 gui.Parent = CoreGui
@@ -23,9 +23,7 @@ local function makeDraggable(frame)
             dragStart = input.Position
             startPos = frame.Position
             input.Changed:Connect(function()
-                if input.UserInputState == Enum.UserInputState.End then
-                    dragging = false
-                end
+                if input.UserInputState == Enum.UserInputState.End then dragging = false end
             end)
         end
     end)
@@ -48,7 +46,6 @@ main.Size = UDim2.new(0, 100, 0, 100)
 main.Position = UDim2.new(0.5, -50, 0.5, -50)
 main.BackgroundColor3 = Color3.fromRGB(20, 140, 255)
 main.BorderSizePixel = 0
-main.Visible = true
 main.Parent = gui
 makeDraggable(main)
 
@@ -68,9 +65,8 @@ openCloseBtn.BackgroundColor3 = Color3.fromRGB(255, 80, 80)
 openCloseBtn.TextColor3 = Color3.new(1, 1, 1)
 openCloseBtn.Font = Enum.Font.GothamBold
 openCloseBtn.TextSize = 16
-openCloseBtn.Visible = true
 openCloseBtn.Parent = gui
-Instance.new("UICorner", openCloseBtn).CornerRadius = UDim.new(0, 12)
+Instance.new("UICorner", openCloseBtn).Corner rivRadius = UDim.new(0, 12)
 local openCloseStroke = Instance.new("UIStroke", openCloseBtn)
 openCloseStroke.Color = Color3.fromRGB(255, 255, 255)
 openCloseStroke.Thickness = 1
@@ -119,7 +115,7 @@ editList.ScrollBarImageColor3 = Color3.fromRGB(255, 160, 80)
 editList.CanvasSize = UDim2.new(0, 0, 0, 0)
 editList.Parent = editFrame
 
--- Stored Data
+-- Data
 local savedPositions = {}
 local isAutoPlaying = false
 local isRandomMode = false
@@ -203,7 +199,6 @@ local function updateEditFrame()
             countLabel.Text = "Pos: " .. #savedPositions
             title.Text = "Pos Deleted!"
             task.spawn(resetTitle)
-            -- Refresh visuals
             for _, m in ipairs(markers) do m:Destroy() end
             markers = {}
             for _, b in ipairs(beams) do b:Destroy() end
@@ -276,7 +271,7 @@ cStroke.Thickness = 1
 cStroke.Transparency = 0.9
 copyBtn.Parent = contentFrame
 
--- FITUR BARU: Copy Full Vector3.new (Tanpa Header & Komentar)
+-- FIXED: Copy Vector3 with comma at end of EVERY line
 local copyVectorBtn = Instance.new("TextButton")
 copyVectorBtn.Size = UDim2.new(1, -10, 0, 15)
 copyVectorBtn.Position = UDim2.new(0, 5, 0, 30)
@@ -408,7 +403,7 @@ countLabel.Font = Enum.Font.GothamSemibold
 countLabel.TextSize = 10
 countLabel.Parent = contentFrame
 
--- Open/Close Logic
+-- Open/Close
 local isOpen = true
 openCloseBtn.MouseButton1Click:Connect(function()
     isOpen = not isOpen
@@ -455,17 +450,20 @@ copyBtn.MouseButton1Click:Connect(function()
     task.spawn(resetTitle)
 end)
 
--- Copy Vector3.new (Hanya List, Tanpa Komentar)
+-- FIXED: Copy Vector3 with comma at end of every line
 copyVectorBtn.MouseButton1Click:Connect(function()
     if #savedPositions == 0 then
         title.Text = "No Pos!"
         task.spawn(resetTitle)
         return
     end
-    local code = ""
+
+    local lines = {}
     for _, pos in ipairs(savedPositions) do
-        code = code .. string.format("Vector3.new(%.3f, %.3f, %.3f)\n", pos.X, pos.Y, pos.Z)
+        table.insert(lines, string.format("Vector3.new(%.3f, %.3f, %.3f),", pos.X, pos.Y, pos.Z))
     end
+
+    local code = table.concat(lines, "\n")
     pcall(setclipboard, code)
     title.Text = "Vector3 Copied!"
     task.spawn(resetTitle)
@@ -518,12 +516,13 @@ autoPlayBtn.MouseButton1Click:Connect(function()
         end
 
         local i = 1
-        while isAutoPlaying and i <= #savedPositions do
+        while isAutoPlaying do
             local idx = isRandomMode and indices[i] or i
             hum:MoveTo(savedPositions[idx])
             hum.MoveToFinished:Wait()
             task.wait(walkDelay)
-            i += 1
+            i = i + 1
+            if i > #savedPositions then i = 1 end
         end
     end)
 end)
@@ -619,7 +618,7 @@ pathBtn.MouseButton1Click:Connect(function()
     task.spawn(resetTitle)
 end)
 
--- Hover Effect
+-- Hover
 local function hover(btn)
     local orig = btn.BackgroundColor3
     btn.MouseEnter:Connect(function() btn.BackgroundColor3 = orig:Lerp(Color3.new(1,1,1), 0.2) end)
@@ -629,4 +628,4 @@ for _, b in {addBtn, copyBtn, copyVectorBtn, autoPlayBtn, clearBtn, modeBtn, mar
     hover(b)
 end
 
-print("GUI + Copy Vector3 Loaded!")
+print("GUI Executor + Fixed Copy Vector3 Loaded!")
