@@ -1,46 +1,41 @@
---// TRUE RECORDER V18 – DOWNLOAD SCRIPT DIRECT (NO CLIPBOARD NEEDED)
---// Klik sekali → file .lua langsung terdownload ke HP/PC!
-
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
 local CoreGui = game:GetService("CoreGui")
-local HttpService = game:GetService("HttpService")
 local LocalPlayer = Players.LocalPlayer
 
 local gui = Instance.new("ScreenGui")
-gui.Name = "RecorderV18"
+gui.Name = "RecorderV22"
 gui.ResetOnSpawn = false
 gui.Parent = CoreGui
 
--- Logo besar + drag + open/close
 local logo = Instance.new("TextButton")
-logo.Size = UDim2.new(0, 80, 0, 80)
-logo.Position = UDim2.new(0, 20, 0.5, -40)
-logo.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
-logo.Text = "R18"
+logo.Size = UDim2.new(0,80,0,80)
+logo.Position = UDim2.new(0,20,0.5,-40)
+logo.BackgroundColor3 = Color3.fromRGB(0,170,255)
+logo.Text = "R22"
 logo.TextColor3 = Color3.new(1,1,1)
 logo.Font = Enum.Font.GothamBlack
 logo.TextSize = 38
 logo.Active = true
 logo.Draggable = true
 logo.Parent = gui
-Instance.new("UICorner", logo).CornerRadius = UDim.new(0, 24)
-Instance.new("UIStroke", logo).Color = Color3.new(1,1,1); logo.UIStroke.Thickness = 3.5
+Instance.new("UICorner",logo).CornerRadius = UDim.new(0,24)
+Instance.new("UIStroke",logo).Color = Color3.new(1,1,1)
+logo.UIStroke.Thickness = 3.5
 
--- Menu
 local main = Instance.new("Frame")
-main.Size = UDim2.new(0, 190, 0, 300)
-main.Position = UDim2.new(0, 15, 0.5, -150)
-main.BackgroundColor3 = Color3.fromRGB(15, 15, 35)
+main.Size = UDim2.new(0,190,0,300)
+main.Position = UDim2.new(0,15,0.5,-150)
+main.BackgroundColor3 = Color3.fromRGB(15,15,35)
 main.Visible = false
 main.Parent = gui
-Instance.new("UICorner", main).CornerRadius = UDim.new(0, 16)
-Instance.new("UIStroke", main).Color = Color3.fromRGB(0, 170, 255)
+Instance.new("UICorner",main).CornerRadius = UDim.new(0,16)
+Instance.new("UIStroke",main).Color = Color3.fromRGB(0,170,255)
 
 local title = Instance.new("TextLabel")
 title.Size = UDim2.new(1,0,0,34)
 title.BackgroundTransparency = 1
-title.Text = "V18 Download"
+title.Text = "V22 Final"
 title.TextColor3 = Color3.new(1,1,1)
 title.Font = Enum.Font.GothamBold
 title.TextSize = 16
@@ -60,151 +55,128 @@ local actions = {}
 local lastSavePoint = nil
 local autoAdd = false
 local lastTime = 0
+local yPos = 68
 
-local y = 68
-local function btn(text, color, callback)
-	local b = Instance.new("TextButton")
-	b.Size = UDim2.new(0, 170, 0, 34)
-	b.Position = UDim2.new(0, 10, 0, y)
-	b.BackgroundColor3 = color
-	b.Text = text
-	b.TextColor3 = Color3.new(1,1,1)
-	b.Font = Enum.Font.GothamBold
-	b.TextSize = 13
-	b.Parent = main
-	Instance.new("UICorner", b).CornerRadius = UDim.new(0, 10)
-	b.MouseButton1Click:Connect(callback)
-	y = y + 40
+local function addButton(name,col,callback)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(0,170,0,34)
+    btn.Position = UDim2.new(0,10,0,yPos)
+    btn.BackgroundColor3 = col
+    btn.Text = name
+    btn.TextColor3 = Color3.new(1,1,1)
+    btn.Font = Enum.Font.GothamBold
+    btn.TextSize = 13
+    btn.Parent = main
+    Instance.new("UICorner",btn).CornerRadius = UDim.new(0,10)
+    btn.MouseButton1Click:Connect(callback)
+    yPos = yPos + 40
+    return btn
 end
 
 logo.MouseButton1Click:Connect(function()
-	main.Visible = not main.Visible
-	logo.Text = main.Visible and "×" or "R18"
-	logo.TextSize = main.Visible and 55 or 38
+    main.Visible = not main.Visible
+    logo.Text = main.Visible and "X" or "R22"
+    logo.TextSize = main.Visible and 55 or 38
 end)
 
--- Auto Record
-local autoBtn = btn("Record: OFF", Color3.fromRGB(255,70,70), function()
-	autoAdd = not autoAdd
-	autoBtn.Text = autoAdd and "Record: ON" or "Record: OFF"
-	autoBtn.BackgroundColor3 = autoAdd and Color3.fromRGB(0,220,100) or Color3.fromRGB(255,70,70)
+local autoBtn = addButton("Record: OFF",Color3.fromRGB(255,70,70),function()
+    autoAdd = not autoAdd
+    autoBtn.Text = autoAdd and "Record: ON" or "Record: OFF"
+    autoBtn.BackgroundColor3 = autoAdd and Color3.fromRGB(0,220,100) or Color3.fromRGB(255,70,70)
 end)
 
--- Set Respawn Point
-btn("Set Respawn Point", Color3.fromRGB(0,200,0), function()
-	local char = LocalPlayer.Character
-	if char and char:FindFirstChild("HumanoidRootPart") then
-		lastSavePoint = { CFrame = char.HumanoidRootPart.CFrame, Velocity = char.HumanoidRootPart.Velocity }
-		title.Text = "Saved!"
-		task.delay(1.5, function() title.Text = "V18 Download" end)
-	end
+addButton("Set Respawn Point",Color3.fromRGB(0,200,0),function()
+    local char = LocalPlayer.Character
+    if char and char:FindFirstChild("HumanoidRootPart") then
+        lastSavePoint = {CFrame = char.HumanoidRootPart.CFrame, Velocity = char.HumanoidRootPart.Velocity}
+        title.Text = "Saved!"
+        task.delay(1.5,function() title.Text = "V22 Final" end)
+    end
 end)
 
--- Recording
 task.spawn(function()
-	while task.wait(0.033) do
-		if not autoAdd then continue end
-		local char = LocalPlayer.Character
-		if not char then continue end
-		local hum = char:FindFirstChild("Humanoid")
-		local hrp = char:FindFirstChild("HumanoidRootPart")
-		local cam = Workspace.CurrentCamera
-		if not hum or not hrp or not cam then continue end
-
-		local now = tick()
-		if now - lastTime < 0.032 then continue end
-
-		table.insert(actions, {
-			Pos = hrp.Position,
-			Vel = hrp.Velocity,
-			MoveDir = hum.MoveDirection,
-			Jump = hum.Jump,
-			CamCFrame = cam.CFrame,
-			CamFOV = cam.FieldOfView,
-			Delay = now - lastTime
-		})
-		count.Text = "Acts: " .. #actions
-		lastTime = now
-	end
+    while task.wait(0.033) do
+        if not autoAdd then continue end
+        local char = LocalPlayer.Character
+        if not char then continue end
+        local hum = char:FindFirstChild("Humanoid")
+        local hrp = char:FindFirstChild("HumanoidRootPart")
+        local cam = Workspace.CurrentCamera
+        if not hum or not hrp or not cam then continue end
+        local now = tick()
+        if now - lastTime < 0.032 then continue end
+        table.insert(actions,{
+            Pos = hrp.Position,
+            Vel = hrp.Velocity,
+            MoveDir = hum.MoveDirection,
+            Jump = hum.Jump,
+            CamCFrame = cam.CFrame,
+            CamFOV = cam.FieldOfView,
+            Delay = now - lastTime
+        })
+        count.Text = "Acts: " .. #actions
+        lastTime = now
+    end
 end)
 
--- DOWNLOAD SCRIPT LANGSUNG KE HP/PC!
-btn("Download Script", Color3.fromRGB(0,200,255), function()
-	if #actions < 10 then
-		title.Text = "Record dulu!"
-		task.delay(2, function() title.Text = "V18 Download" end)
-		return
-	end
+addButton("Download .lua",Color3.fromRGB(0,220,255),function()
+    if #actions < 10 then
+        title.Text = "Record dulu!"
+        task.delay(2,function() title.Text = "V22 Final" end)
+        return
+    end
+    title.Text = "Saving..."
 
-	title.Text = "Generating..."
+    local code = "-- True Recorder V22 - "..#actions.." actions\n"
+    code = code.."local cam = workspace.CurrentCamera\n"
+    code = code.."local plr = game.Players.LocalPlayer\n"
+    code = code.."local char = plr.Character or plr.CharacterAdded:Wait()\n"
+    code = code.."local hum = char:WaitForChild('Humanoid')\n"
+    code = code.."local hrp = char:WaitForChild('HumanoidRootPart')\n"
+    code = code.."task.wait(1.5)\n\n"
 
-	local scriptCode = {
-		"-- TRUE RECORDED MOVEMENT + CAMERA",
-		"-- Generated by V18 Recorder",
-		"local cam = workspace.CurrentCamera",
-		"local plr = game.Players.LocalPlayer",
-		"local char = plr.Character or plr.CharacterAdded:Wait()",
-		"local hum = char:WaitForChild('Humanoid')",
-		"local hrp = char:WaitForChild('HumanoidRootPart')",
-		"task.wait(1.5)",
-		""
-	}
+    for i,act in ipairs(actions) do
+        local d = i==1 and 0 or math.max(0.02,act.Delay)
+        local c = act.CamCFrame
+        code = code..string.format("cam.CFrame = CFrame.new(%.4f,%.4f,%.4f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f)\n",c.Position.X,c.Position.Y,c.Position.Z,c:components())
+        code = code..string.format("cam.FieldOfView = %.2f\n",act.CamFOV)
+        if act.MoveDir.Magnitude > 0.01 then
+            code = code..string.format("hum:Move(Vector3.new(%.4f,0,%.4f),true)\n",act.MoveDir.X,act.MoveDir.Z)
+        else
+            code = code.."hum:Move(Vector3.new(),true)\n"
+        end
+        code = code..string.format("hrp.AssemblyLinearVelocity = Vector3.new(%.4f,%.4f,%.4f)\n",act.Vel.X,act.Vel.Y,act.Vel.Z)
+        code = code..string.format("hrp.CFrame = CFrame.new(%.4f,%.4f,%.4f)\n",act.Pos.X,act.Pos.Y,act.Pos.Z)
+        if act.Jump then code = code.."hum.Jump = true\n" end
+        code = code..string.format("task.wait(%.4f)\n",d)
+    end
 
-	for i, act in ipairs(actions) do
-		local d = i == 1 and 0 or math.max(0.02, act.Delay)
-		local c = act.CamCFrame
+    if writefile then
+        writefile("Path_"..#actions.."_acts.lua",code)
+    end
 
-		table.insert(scriptCode, string.format("cam.CFrame = CFrame.new(%.4f,%.4f,%.4f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f)",
-			c.Position.X, c.Position.Y, c.Position.Z, c:components()))
-		table.insert(scriptCode, string.format("cam.FieldOfView = %.2f", act.CamFOV))
-
-		if act.MoveDir.Magnitude > 0.01 then
-			table.insert(scriptCode, string.format("hum:Move(Vector3.new(%.4f,0,%.4f),true)", act.MoveDir.X, act.MoveDir.Z))
-		else
-			table.insert(scriptCode, "hum:Move(Vector3.new(),true)")
-		end
-
-		table.insert(scriptCode, string.format("hrp.AssemblyLinearVelocity = Vector3.new(%.4f,%.4f,%.4f)", act.Vel.X, act.Vel.Y, act.Vel.Z))
-		table.insert(scriptCode, string.format("hrp.CFrame = CFrame.new(%.4f,%.4f,%.4f)", act.Pos.X, act.Pos.Y, act.Pos.Z))
-		if act.Jump then table.insert(scriptCode, "hum.Jump = true") end
-		table.insert(scriptCode, string.format("task.wait(%.4f)", d))
-	end
-
-	local finalScript = table.concat(scriptCode, "\n")
-
-	-- DOWNLOAD LANGSUNG!
-	local encoded = HttpService:UrlEncode(finalScript)
-	local url = "https://api.luarmor.net/files/v3/create/direct-download?content=" .. encoded .. "&filename=Recorded_Movement_" .. #actions .. "_acts.lua"
-	syn.request({
-		Url = url,
-		Method = "GET"
-	})
-
-	title.Text = "Downloaded! Check folder!"
-	task.delay(4, function() title.Text = "V18 Download" end)
+    title.Text = "DOWNLOADED!"
+    task.delay(3,function() title.Text = "V22 Final" end)
 end)
 
--- Clear
-btn("Clear All", Color3.fromRGB(255,80,80), function()
-	actions = {}
-	count.Text = "Acts: 0"
-	title.Text = "Cleared!"
-	task.delay(1.5, function() title.Text = "V18 Download" end)
+addButton("Clear All",Color3.fromRGB(255,80,80),function()
+    actions = {}
+    count.Text = "Acts: 0"
 end)
 
--- Respawn
 LocalPlayer.CharacterAdded:Connect(function(char)
-	if not lastSavePoint then return end
-	task.wait(2)
-	local hrp = char:FindFirstChild("HumanoidRootPart")
-	local hum = char:FindFirstChild("Humanoid")
-	if not hrp or not hum then return end
-	hum:ChangeState(Enum.HumanoidStateType.Physics)
-	task.wait(0.15)
-	hrp.CFrame = lastSavePoint.CFrame
-	hrp.Velocity = lastSavePoint.Velocity or Vector3.new()
-	task.wait(0.2)
-	hum:ChangeState(Enum.HumanoidStateType.Running)
+    if not lastSavePoint then return end
+    task.wait(2)
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    local hum = char:FindFirstChild("Humanoid")
+    if hrp and hum then
+        hum:ChangeState(Enum.HumanoidStateType.Physics)
+        task.wait(0.15)
+        hrp.CFrame = lastSavePoint.CFrame
+        hrp.Velocity = lastSavePoint.Velocity or Vector3.new()
+        task.wait(0.2)
+        hum:ChangeState(Enum.HumanoidStateType.Running)
+    end
 end)
 
-title.Text = "V18 Ready! Click Download"
+title.Text = "V22 Ready!"
