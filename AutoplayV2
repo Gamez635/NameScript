@@ -1,0 +1,273 @@
+-- =====================================================
+-- SERVICES
+-- =====================================================
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UIS = game:GetService("UserInputService")
+
+local Player = Players.LocalPlayer
+local function HRP()
+    local c = Player.Character or Player.CharacterAdded:Wait()
+    return c:WaitForChild("HumanoidRootPart")
+end
+
+-- =====================================================
+-- STATE
+-- =====================================================
+local positions = {}
+local selectedIndex
+local autoPlay = false
+
+local testVectors = {}
+local testPlay = false
+
+-- =====================================================
+-- GUI ROOT
+-- =====================================================
+local gui = Instance.new("ScreenGui")
+gui.ResetOnSpawn = false
+gui.Parent = Player.PlayerGui
+
+-- =====================================================
+-- OPEN BUTTON
+-- =====================================================
+local openBtn = Instance.new("TextButton", gui)
+openBtn.Size = UDim2.fromOffset(60,20)
+openBtn.Position = UDim2.fromOffset(10,10)
+openBtn.Text = "OPEN"
+openBtn.TextScaled = true
+openBtn.BackgroundColor3 = Color3.fromRGB(40,120,40)
+openBtn.TextColor3 = Color3.new(1,1,1)
+Instance.new("UICorner", openBtn)
+
+-- =====================================================
+-- MAIN FRAME
+-- =====================================================
+local frame = Instance.new("Frame", gui)
+frame.Size = UDim2.fromOffset(150,310)
+frame.Position = UDim2.fromScale(0.4,0.3)
+frame.BackgroundColor3 = Color3.fromRGB(30,30,30)
+frame.Visible = false
+frame.Active = true
+Instance.new("UICorner", frame)
+
+-- =====================================================
+-- DRAG
+-- =====================================================
+do
+    local dragging, startPos, startFrame
+    frame.InputBegan:Connect(function(i)
+        if i.UserInputType == Enum.UserInputType.MouseButton1
+        or i.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            startPos = i.Position
+            startFrame = frame.Position
+        end
+    end)
+
+    frame.InputEnded:Connect(function(i)
+        if i.UserInputType == Enum.UserInputType.MouseButton1
+        or i.UserInputType == Enum.UserInputType.Touch then
+            dragging = false
+        end
+    end)
+
+    UIS.InputChanged:Connect(function(i)
+        if dragging then
+            local d = i.Position - startPos
+            frame.Position = UDim2.new(
+                startFrame.X.Scale,
+                startFrame.X.Offset + d.X,
+                startFrame.Y.Scale,
+                startFrame.Y.Offset + d.Y
+            )
+        end
+    end)
+end
+
+-- =====================================================
+-- CLOSE BUTTON
+-- =====================================================
+local closeBtn = Instance.new("TextButton", frame)
+closeBtn.Size = UDim2.fromOffset(50,18)
+closeBtn.Position = UDim2.new(1,-55,0,5)
+closeBtn.Text = "CLOSE"
+closeBtn.TextScaled = true
+closeBtn.BackgroundColor3 = Color3.fromRGB(140,50,50)
+closeBtn.TextColor3 = Color3.new(1,1,1)
+Instance.new("UICorner", closeBtn)
+
+openBtn.MouseButton1Click:Connect(function()
+    frame.Visible = not frame.Visible
+end)
+
+closeBtn.MouseButton1Click:Connect(function()
+    frame.Visible = false
+end)
+
+-- =====================================================
+-- SCROLLING LIST
+-- =====================================================
+local list = Instance.new("ScrollingFrame", frame)
+list.Position = UDim2.fromOffset(6,28)
+list.Size = UDim2.fromOffset(138,70)
+list.ScrollBarThickness = 3
+list.BackgroundColor3 = Color3.fromRGB(40,40,40)
+Instance.new("UICorner", list)
+
+local layout = Instance.new("UIListLayout", list)
+layout.Padding = UDim.new(0,2)
+
+layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+    list.CanvasSize = UDim2.new(0,0,0,layout.AbsoluteContentSize.Y + 4)
+end)
+
+local function refresh()
+    for _,v in ipairs(list:GetChildren()) do
+        if v:IsA("TextButton") then v:Destroy() end
+    end
+
+    for i,pos in ipairs(positions) do
+        local b = Instance.new("TextButton", list)
+        b.Size = UDim2.new(1,-4,0,16)
+        b.Text = "Pos "..i
+        b.TextScaled = true
+        b.BackgroundColor3 = Color3.fromRGB(70,70,70)
+        b.TextColor3 = Color3.new(1,1,1)
+        Instance.new("UICorner", b)
+
+        b.MouseButton1Click:Connect(function()
+            selectedIndex = i
+            HRP().CFrame = CFrame.new(pos)
+        end)
+    end
+end
+
+-- =====================================================
+-- BUTTON FACTORY
+-- =====================================================
+local function btn(text,y)
+    local b = Instance.new("TextButton", frame)
+    b.Size = UDim2.fromOffset(138,16)
+    b.Position = UDim2.fromOffset(6,y)
+    b.Text = text
+    b.TextScaled = true
+    b.BackgroundColor3 = Color3.fromRGB(60,60,60)
+    b.TextColor3 = Color3.new(1,1,1)
+    Instance.new("UICorner", b)
+    return b
+end
+
+-- =====================================================
+-- INPUT VECTOR
+-- =====================================================
+local input = Instance.new("TextBox", frame)
+input.Size = UDim2.fromOffset(138,20)
+input.Position = UDim2.fromOffset(6,104)
+input.PlaceholderText = "Paste Vector3.new"
+input.Text = ""
+input.TextScaled = true
+input.ClearTextOnFocus = false
+input.BackgroundColor3 = Color3.fromRGB(45,45,45)
+input.TextColor3 = Color3.new(1,1,1)
+Instance.new("UICorner", input)
+
+-- =====================================================
+-- BUTTONS
+-- =====================================================
+local add    = btn("Add Pos",130)
+local edit   = btn("Edit Pos",148)
+local clear  = btn("Clear Pos",166)
+local copy   = btn("Copy Vector",184)
+local copyAll= btn("Copy All Vector",202)
+local play   = btn("Auto Play",220)
+local stop   = btn("Stop Auto",238)
+local test   = btn("Test Vector",256)
+local stopT  = btn("Stop Test",274)
+
+-- =====================================================
+-- LOGIC
+-- =====================================================
+add.MouseButton1Click:Connect(function()
+    table.insert(positions, HRP().Position)
+    refresh()
+end)
+
+edit.MouseButton1Click:Connect(function()
+    if selectedIndex then
+        positions[selectedIndex] = HRP().Position
+        refresh()
+    end
+end)
+
+clear.MouseButton1Click:Connect(function()
+    positions = {}
+    selectedIndex = nil
+    refresh()
+end)
+
+copy.MouseButton1Click:Connect(function()
+    if not selectedIndex then return end
+    local p = positions[selectedIndex]
+    setclipboard(string.format(
+        "Vector3.new(%.3f, %.3f, %.3f),",
+        p.X, p.Y, p.Z
+    ))
+end)
+
+copyAll.MouseButton1Click:Connect(function()
+    if #positions == 0 then return end
+    local out = {}
+    for _,p in ipairs(positions) do
+        table.insert(out,
+            string.format("Vector3.new(%.3f, %.3f, %.3f),", p.X, p.Y, p.Z)
+        )
+    end
+    setclipboard(table.concat(out,"\n"))
+end)
+
+play.MouseButton1Click:Connect(function()
+    if autoPlay or #positions == 0 then return end
+    autoPlay = true
+    task.spawn(function()
+        local i = 1
+        while autoPlay do
+            HRP().CFrame = CFrame.new(positions[i])
+            i = i % #positions + 1
+            RunService.Heartbeat:Wait()
+        end
+    end)
+end)
+
+stop.MouseButton1Click:Connect(function()
+    autoPlay = false
+end)
+
+-- =====================================================
+-- TEST VECTOR PARSER
+-- =====================================================
+local function parseVectors(text)
+    local list = {}
+    for x,y,z in text:gmatch("Vector3%.new%(([^,]+),([^,]+),([^%)]+)%)") do
+        table.insert(list, Vector3.new(tonumber(x), tonumber(y), tonumber(z)))
+    end
+    return list
+end
+
+test.MouseButton1Click:Connect(function()
+    testVectors = parseVectors(input.Text)
+    if #testVectors == 0 or testPlay then return end
+    testPlay = true
+    task.spawn(function()
+        local i = 1
+        while testPlay do
+            HRP().CFrame = CFrame.new(testVectors[i])
+            i = i % #testVectors + 1
+            RunService.Heartbeat:Wait()
+        end
+    end)
+end)
+
+stopT.MouseButton1Click:Connect(function()
+    testPlay = false
+end)
