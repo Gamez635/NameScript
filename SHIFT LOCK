@@ -1,123 +1,208 @@
--- SHIFT LOCK EXECUTOR - FULL CUSTOM & DRAGGABLE (PC + MOBILE)
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
+local Workspace = game:GetService("Workspace")
 
-local plr = Players.LocalPlayer
-local character = plr.Character or plr.CharacterAdded:Wait()
-local humanoid = character:WaitForChild("Humanoid")
-local rootPart = character:WaitForChild("HumanoidRootPart")
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui", 10)
+
+local character = player.Character or player.CharacterAdded:Wait()
+
+local function setupCharacter(char)
+    character = char
+    local humanoid = char:WaitForChild("Humanoid", 5)
+    local rootPart = char:WaitForChild("HumanoidRootPart", 5)
+    if not humanoid or not rootPart then return nil end
+    return humanoid, rootPart
+end
+
+local humanoid, rootPart = setupCharacter(character)
 
 local shiftLockActive = false
+local guiVisible = true
+local connectionRender = nil
 
--- === BUAT GUI ===
 local sg = Instance.new("ScreenGui")
-sg.Name = "ShiftLockGUI"
+sg.Name = "CustomShiftLockGUI"
 sg.ResetOnSpawn = false
-sg.Parent = plr:WaitForChild("PlayerGui")
+sg.Parent = playerGui
 
 local frame = Instance.new("Frame")
-frame.Size = UDim2.new(0, 160, 0, 70)
-frame.Position = UDim2.new(0, 15, 0, 15)
-frame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+frame.Size = UDim2.new(0, 160, 0, 100)
+frame.Position = UDim2.new(0, 20, 0, 20)
+frame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
 frame.BorderColor3 = Color3.fromRGB(255, 255, 255)
 frame.BorderSizePixel = 2
 frame.Active = true
-frame.Draggable = true   -- otomatis support drag PC + HP
+frame.Draggable = true
+frame.Visible = true
 frame.Parent = sg
 
 local corner = Instance.new("UICorner")
-corner.CornerRadius = UDim.new(0, 14)
+corner.CornerRadius = UDim.new(0, 12)
 corner.Parent = frame
 
+local stroke = Instance.new("UIStroke")
+stroke.Color = Color3.fromRGB(60, 60, 60)
+stroke.Thickness = 1.5
+stroke.Parent = frame
+
 local title = Instance.new("TextLabel")
-title.Size = UDim2.new(1, 0, 0.45, 0)
+title.Size = UDim2.new(1, 0, 0, 30)
 title.BackgroundTransparency = 1
 title.Text = "SHIFT LOCK"
-title.TextColor3 = Color3.new(1, 1, 1)
+title.TextColor3 = Color3.new(1,1,1)
 title.Font = Enum.Font.GothamBold
-title.TextSize = 16
+title.TextSize = 17
 title.Parent = frame
 
 local status = Instance.new("TextLabel")
-status.Size = UDim2.new(1, 0, 0.55, 0)
-status.Position = UDim2.new(0, 0, 0.45, 0)
+status.Size = UDim2.new(1, 0, 0, 45)
+status.Position = UDim2.new(0, 0, 0, 30)
 status.BackgroundTransparency = 1
 status.Text = "OFF"
-status.TextColor3 = Color3.fromRGB(255, 70, 70)
-status.Font = Enum.Font.GothamBold
-status.TextSize = 28
+status.TextColor3 = Color3.fromRGB(255, 80, 80)
+status.Font = Enum.Font.GothamBlack
+status.TextSize = 32
 status.Parent = frame
 
--- === DRAG SUPPORT UNTUK HP (Touch) & PC (Mouse) ===
-frame.InputBegan:Connect(function(input)
-	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-		local dragConnection
-		local startPos = input.Position
-		local startFramePos = frame.Position
+local closeBtn = Instance.new("TextButton")
+closeBtn.Size = UDim2.new(0, 28, 0, 28)
+closeBtn.Position = UDim2.new(1, -32, 0, 4)
+closeBtn.BackgroundColor3 = Color3.fromRGB(180, 40, 40)
+closeBtn.Text = "X"
+closeBtn.TextColor3 = Color3.new(1,1,1)
+closeBtn.Font = Enum.Font.GothamBold
+closeBtn.TextSize = 18
+closeBtn.Parent = frame
 
-		dragConnection = input.Changed:Connect(function()
-			if input.UserInputState == Enum.UserInputState.End then
-				dragConnection:Disconnect()
-			end
-		end)
+local closeCorner = Instance.new("UICorner")
+closeCorner.CornerRadius = UDim.new(0, 8)
+closeCorner.Parent = closeBtn
 
-		UserInputService.InputChanged:Connect(function(input2)
-			if input2.UserInputType == Enum.UserInputType.MouseMovement or input2.UserInputType == Enum.UserInputType.Touch then
-				if input2 == input or input2.UserInputState == Enum.UserInputState.Begin then
-					local delta = input2.Position - startPos
-					frame.Position = UDim2.new(
-						startFramePos.X.Scale,
-						startFramePos.X.Offset + delta.X,
-						startFramePos.Y.Scale,
-						startFramePos.Y.Offset + delta.Y
-					)
-				end
-			end
-		end)
-	end
-end)
+local showBtn = Instance.new("TextButton")
+showBtn.Size = UDim2.new(0, 50, 0, 50)
+showBtn.Position = UDim2.new(0, 10, 0.5, -25)
+showBtn.BackgroundColor3 = Color3.fromRGB(40, 120, 255)
+showBtn.Text = "SL"
+showBtn.TextColor3 = Color3.new(1,1,1)
+showBtn.Font = Enum.Font.GothamBlack
+showBtn.TextSize = 20
+showBtn.Visible = false
+showBtn.Parent = sg
 
--- === FUNGSI SHIFT LOCK ===
-local function updateShiftLock()
-	if shiftLockActive then
-		humanoid.AutoRotate = false
-		UserInputService.MouseBehavior = Enum.MouseBehavior.LockCenter
-		
-		RunService:BindToRenderStep("ShiftLockCustom", Enum.RenderPriority.Character.Value, function()
-			local _, y = workspace.CurrentCamera.CFrame:ToEulerAnglesYXZ()
-			rootPart.CFrame = CFrame.new(rootPart.Position) * CFrame.Angles(0, y, 0)
-		end)
-		
-		status.Text = "ON"
-		status.TextColor3 = Color3.fromRGB(70, 255, 70)
-		frame.BorderColor3 = Color3.fromRGB(70, 255, 70)
-	else
-		humanoid.AutoRotate = true
-		UserInputService.MouseBehavior = Enum.MouseBehavior.Default
-		RunService:UnbindFromRenderStep("ShiftLockCustom")
-		
-		status.Text = "OFF"
-		status.TextColor3 = Color3.fromRGB(255, 70, 70)
-		frame.BorderColor3 = Color3.fromRGB(255, 255, 255)
-	end
+local showCorner = Instance.new("UICorner")
+showCorner.CornerRadius = UDim.new(1, 0)
+showCorner.Parent = showBtn
+
+local showStroke = Instance.new("UIStroke")
+showStroke.Color = Color3.fromRGB(100, 180, 255)
+showStroke.Thickness = 2
+showStroke.Parent = showBtn
+
+local dragging, dragStart, startPos
+
+local function startDrag(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 
+        or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true
+        dragStart = input.Position
+        startPos = frame.Position
+        
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                dragging = false
+            end
+        end)
+    end
 end
 
--- === KLIK / SENTUH UNTUK TOGGLE ===
-frame.InputBegan:Connect(function(input)
-	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-		shiftLockActive = not shiftLockActive
-		updateShiftLock()
-	end
+frame.InputBegan:Connect(startDrag)
+showBtn.InputBegan:Connect(startDrag)
+
+UserInputService.InputChanged:Connect(function(input)
+    if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement 
+        or input.UserInputType == Enum.UserInputType.Touch) then
+        local delta = input.Position - dragStart
+        local target = frame.Visible and frame or showBtn
+        
+        target.Position = UDim2.new(
+            startPos.X.Scale,
+            startPos.X.Offset + delta.X,
+            startPos.Y.Scale,
+            startPos.Y.Offset + delta.Y
+        )
+    end
 end)
 
--- Karakter respawn tetap jalan
-plr.CharacterAdded:Connect(function(newChar)
-	character = newChar
-	humanoid = newChar:WaitForChild("Humanoid")
-	rootPart = newChar:WaitForChild("HumanoidRootPart")
-	if shiftLockActive then
-		task.wait(0.1)
-		updateShiftLock()
-	end
+local function updateShiftLock()
+    if not humanoid or not rootPart then return end
+    
+    if shiftLockActive then
+        humanoid.AutoRotate = false
+        UserInputService.MouseBehavior = Enum.MouseBehavior.LockCenter
+        
+        if connectionRender then connectionRender:Disconnect() end
+        
+        connectionRender = RunService.RenderStepped:Connect(function()
+            if not rootPart or not Workspace.CurrentCamera then return end
+            local _, yRot = Workspace.CurrentCamera.CFrame:ToEulerAnglesYXZ()
+            rootPart.CFrame = CFrame.new(rootPart.Position) * CFrame.Angles(0, yRot, 0)
+        end)
+        
+        status.Text = "ON"
+        status.TextColor3 = Color3.fromRGB(80, 255, 80)
+        frame.BorderColor3 = Color3.fromRGB(80, 255, 80)
+        stroke.Color = Color3.fromRGB(80, 255, 80)
+    else
+        humanoid.AutoRotate = true
+        UserInputService.MouseBehavior = Enum.MouseBehavior.Default
+        
+        if connectionRender then
+            connectionRender:Disconnect()
+            connectionRender = nil
+        end
+        
+        status.Text = "OFF"
+        status.TextColor3 = Color3.fromRGB(255, 80, 80)
+        frame.BorderColor3 = Color3.fromRGB(255, 255, 255)
+        stroke.Color = Color3.fromRGB(60, 60, 60)
+    end
+end
+
+frame.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 
+        or input.UserInputType == Enum.UserInputType.Touch then
+        if input.Position.X >= closeBtn.AbsolutePosition.X then return end
+        
+        task.delay(0.05, function()
+            shiftLockActive = not shiftLockActive
+            updateShiftLock()
+        end)
+    end
+end)
+
+closeBtn.MouseButton1Click:Connect(function()
+    guiVisible = false
+    frame.Visible = false
+    showBtn.Visible = true
+end)
+
+showBtn.MouseButton1Click:Connect(function()
+    guiVisible = true
+    frame.Visible = true
+    showBtn.Visible = false
+end)
+
+player.CharacterAdded:Connect(function(newChar)
+    task.wait(0.25)
+    local hum, rp = setupCharacter(newChar)
+    if hum and rp then
+        humanoid = hum
+        rootPart = rp
+        if shiftLockActive then
+            task.wait(0.1)
+            updateShiftLock()
+        end
+    end
 end)
