@@ -1,0 +1,360 @@
+local Players = game:GetService("Players")
+local CoreGui = game:GetService("CoreGui")
+local RunService = game:GetService("RunService")
+local HttpService = game:GetService("HttpService")
+local LocalPlayer = Players.LocalPlayer
+
+settings().Physics.PhysicsEnvironmentalThrottle = Enum.EnviromentalPhysicsThrottle.Disabled
+settings().Physics.AllowSleep = false
+
+local storageFolder = Instance.new("Folder")
+storageFolder.Name = "TrueRecorderSaves"
+storageFolder.Parent = LocalPlayer
+
+local gui = Instance.new("ScreenGui")
+gui.Name = "TrueRecorderV40"
+gui.ResetOnSpawn = false
+gui.Parent = CoreGui
+
+local logoBtn = Instance.new("TextButton")
+logoBtn.Size = UDim2.new(0,70,0,70)
+logoBtn.Position = UDim2.new(0,15,0,15)
+logoBtn.BackgroundColor3 = Color3.fromRGB(30, 60, 255)
+logoBtn.Text = "R"
+logoBtn.TextColor3 = Color3.new(1,1,1)
+logoBtn.Font = Enum.Font.GothamBlack
+logoBtn.TextSize = 52
+logoBtn.Draggable = true
+logoBtn.Parent = gui
+Instance.new("UICorner",logoBtn).CornerRadius = UDim.new(1,0)
+local stroke = Instance.new("UIStroke",logoBtn)
+stroke.Color = Color3.fromRGB(100, 220, 255)
+stroke.Thickness = 4
+stroke.Transparency = 0.3
+
+local main = Instance.new("Frame")
+main.Size = UDim2.new(0,300,0,300)
+main.Position = UDim2.new(0.5,-150,0.5,-150)
+main.BackgroundColor3 = Color3.fromRGB(18, 18, 28)
+main.BorderSizePixel = 0
+main.Active = true
+main.Draggable = true
+main.Visible = false
+main.Parent = gui
+Instance.new("UICorner",main).CornerRadius = UDim.new(0,16)
+
+local top = Instance.new("Frame")
+top.Size = UDim2.new(1,0,0,38)
+top.BackgroundColor3 = Color3.fromRGB(40, 80, 220)
+top.BorderSizePixel = 0
+top.Parent = main
+Instance.new("UICorner",top).CornerRadius = UDim.new(0,16)
+
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1,-45,1,0)
+title.Position = UDim2.new(0,45,0,0)
+title.BackgroundTransparency = 1
+title.Text = "ArchiveXNova"
+title.TextColor3 = Color3.new(1,1,1)
+title.Font = Enum.Font.GothamBlack
+title.TextSize = 17
+title.TextXAlignment = Enum.TextXAlignment.Left
+title.Parent = top
+
+local count = Instance.new("TextLabel")
+count.Size = UDim2.new(0,110,0,24)
+count.Position = UDim2.new(1,-120,0,7)
+count.BackgroundColor3 = Color3.fromRGB(60, 120, 255)
+count.Text = "Acts: 0"
+count.TextColor3 = Color3.fromRGB(220, 255, 240)
+count.Font = Enum.Font.GothamBold
+count.TextSize = 14
+count.Parent = top
+Instance.new("UICorner",count).CornerRadius = UDim.new(0,8)
+
+local scrollingFrame = Instance.new("ScrollingFrame")
+scrollingFrame.Size = UDim2.new(1,-24,1,-100)
+scrollingFrame.Position = UDim2.new(0,12,0,58)
+scrollingFrame.BackgroundTransparency = 1
+scrollingFrame.ScrollBarThickness = 4
+scrollingFrame.ScrollBarImageColor3 = Color3.fromRGB(120, 200, 255)
+scrollingFrame.CanvasSize = UDim2.new(0,0,0,0)
+scrollingFrame.Parent = main
+
+local uiListLayout = Instance.new("UIListLayout")
+uiListLayout.Padding = UDim.new(0,8)
+uiListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+uiListLayout.Parent = scrollingFrame
+
+local saveLoadFrame = Instance.new("Frame")
+saveLoadFrame.Size = UDim2.new(0,280,0,320)
+saveLoadFrame.Position = UDim2.new(0.5,-140,0.5,-160)
+saveLoadFrame.BackgroundColor3 = Color3.fromRGB(22, 22, 34)
+saveLoadFrame.BorderSizePixel = 0
+saveLoadFrame.Visible = false
+saveLoadFrame.Parent = gui
+Instance.new("UICorner",saveLoadFrame).CornerRadius = UDim.new(0,14)
+
+local slTitle = Instance.new("TextLabel",saveLoadFrame)
+slTitle.Size = UDim2.new(1,0,0,40)
+slTitle.BackgroundTransparency = 1
+slTitle.Text = "Saved Recordings"
+slTitle.TextColor3 = Color3.new(1,1,1)
+slTitle.Font = Enum.Font.GothamBlack
+slTitle.TextSize = 18
+
+local slScroll = Instance.new("ScrollingFrame",saveLoadFrame)
+slScroll.Size = UDim2.new(1,-24,1,-90)
+slScroll.Position = UDim2.new(0,12,0,52)
+slScroll.BackgroundTransparency = 1
+slScroll.ScrollBarThickness = 4
+
+local slLayout = Instance.new("UIListLayout",slScroll)
+slLayout.Padding = UDim.new(0,7)
+slLayout.SortOrder = Enum.SortOrder.LayoutOrder
+
+local closeSL = Instance.new("TextButton",saveLoadFrame)
+closeSL.Size = UDim2.new(0,32,0,32)
+closeSL.Position = UDim2.new(1,-40,0,6)
+closeSL.BackgroundColor3 = Color3.fromRGB(255, 70, 90)
+closeSL.Text = "×"
+closeSL.TextColor3 = Color3.new(1,1,1)
+closeSL.Font = Enum.Font.GothamBold
+closeSL.TextSize = 20
+Instance.new("UICorner",closeSL).CornerRadius = UDim.new(0,10)
+
+local speedMultipliers = {1, 1.5, 2, 4, 8, 12, 20, 35, 50, 100, 200}
+local speedNames = {"Normal", "Fast", "V.Fast", "Super", "SOL", "Lightning", "Godspeed", "BlackFlash", "Thawne", "Barry", "Wally"}
+
+local actions = {}
+local recording = false
+local lastTick = 0
+local isPlaying = false
+local playConnection = nil
+local loopMode = false
+local playSpeed = 1
+local currentSpeedIndex = 1
+
+local function createButton(name, col)
+    local b = Instance.new("TextButton")
+    b.Size = UDim2.new(1,-24,0,38)
+    b.BackgroundColor3 = col
+    b.Text = name
+    b.TextColor3 = Color3.new(1,1,1)
+    b.Font = Enum.Font.GothamBold
+    b.TextSize = 14
+    b.Parent = scrollingFrame
+    Instance.new("UICorner",b).CornerRadius = UDim.new(0,10)
+    return b
+end
+
+local recBtn      = createButton("Record OFF", Color3.fromRGB(220, 50, 70))
+local playSekali  = createButton("Play Once", Color3.fromRGB(0, 190, 120))
+local playUlang   = createButton("Play Loop", Color3.fromRGB(140, 80, 220))
+local stopBtn     = createButton("STOP", Color3.fromRGB(100, 100, 120))
+local clearBtn    = createButton("Clear", Color3.fromRGB(200, 60, 80))
+local saveBtn     = createButton("Save", Color3.fromRGB(0, 140, 220))
+local loadListBtn = createButton("Load List", Color3.fromRGB(120, 90, 220))
+local speedBtn    = createButton("Speed: Normal (1x)", Color3.fromRGB(180, 140, 0))
+
+stopBtn.BackgroundColor3 = Color3.fromRGB(80,80,100)
+stopBtn.TextColor3 = Color3.fromRGB(200,200,220)
+stopBtn.AutoButtonColor = false
+
+uiListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+    scrollingFrame.CanvasSize = UDim2.new(0,0,0,uiListLayout.AbsoluteContentSize.Y + 20)
+end)
+
+logoBtn.MouseButton1Click:Connect(function()
+    main.Visible = not main.Visible
+    logoBtn.Text = main.Visible and "×" or "R"
+end)
+
+local function generateAutoName()
+    return "Rec_"..os.date("%H%M%S_%d%b%y")
+end
+
+local function saveRecording()
+    if #actions < 10 then return end
+    local name = generateAutoName()
+    local str = Instance.new("StringValue")
+    str.Name = name
+    str.Value = HttpService:JSONEncode(actions)
+    str.Parent = storageFolder
+end
+
+local function loadRecordingActions(data)
+    actions = data
+end
+
+local function refreshLoadList()
+    for _,v in slScroll:GetChildren() do
+        if v:IsA("GuiButton") then v:Destroy() end
+    end
+    local saves = storageFolder:GetChildren()
+    if #saves == 0 then return end
+    for _,save in ipairs(saves) do
+        if not save:IsA("StringValue") then continue end
+        local btn = Instance.new("TextButton")
+        btn.Size = UDim2.new(1,-12,0,36)
+        btn.BackgroundColor3 = Color3.fromRGB(40,40,55)
+        btn.Text = save.Name.."  ("..#HttpService:JSONDecode(save.Value).." acts)"
+        btn.TextColor3 = Color3.new(1,1,1)
+        btn.Font = Enum.Font.GothamSemibold
+        btn.TextSize = 13
+        btn.TextXAlignment = Enum.TextXAlignment.Left
+        btn.Parent = slScroll
+        Instance.new("UIPadding",btn).PaddingLeft = UDim.new(0,14)
+        Instance.new("UICorner",btn).CornerRadius = UDim.new(0,8)
+        
+        btn.MouseButton1Click:Connect(function()
+            local success, data = pcall(HttpService.JSONDecode, HttpService, save.Value)
+            if success and typeof(data) == "table" then
+                loadRecordingActions(data)
+                saveLoadFrame.Visible = false
+            end
+        end)
+    end
+end
+
+recBtn.MouseButton1Click:Connect(function()
+    recording = not recording
+    recBtn.Text = recording and "RECORDING..." or "Record OFF"
+    recBtn.BackgroundColor3 = recording and Color3.fromRGB(0, 210, 100) or Color3.fromRGB(220, 50, 70)
+end)
+
+local function updateSpeedButton()
+    playSpeed = speedMultipliers[currentSpeedIndex]
+    speedBtn.Text = "Speed: "..speedNames[currentSpeedIndex].." ("..playSpeed.."x)"
+end
+
+speedBtn.MouseButton1Click:Connect(function()
+    currentSpeedIndex = (currentSpeedIndex % #speedMultipliers) + 1
+    if isPlaying then
+        isPlaying = false
+        if playConnection then playConnection:Disconnect() end
+        task.delay(0.1, function() startPlayback(loopMode) end)
+    end
+    updateSpeedButton()
+end)
+
+saveBtn.MouseButton1Click:Connect(function()
+    if #actions > 0 then saveRecording() end
+end)
+
+loadListBtn.MouseButton1Click:Connect(function()
+    refreshLoadList()
+    saveLoadFrame.Visible = true
+end)
+
+closeSL.MouseButton1Click:Connect(function()
+    saveLoadFrame.Visible = false
+end)
+
+local function cleanupPlayback()
+    workspace.CurrentCamera.CameraType = Enum.CameraType.Custom
+    local char = LocalPlayer.Character
+    if char then
+        local hum = char:FindFirstChildOfClass("Humanoid")
+        if hum then hum.AutoRotate = true hum.Jump = false end
+    end
+    if playConnection then playConnection:Disconnect() end
+    stopBtn.BackgroundColor3 = Color3.fromRGB(80,80,100)
+    stopBtn.TextColor3 = Color3.fromRGB(200,200,220)
+    stopBtn.AutoButtonColor = false
+end
+
+local function startPlayback(isLoop)
+    if isPlaying or #actions < 5 then return end
+    
+    local char = LocalPlayer.Character
+    if not char then return end
+    
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    local hum = char:FindFirstChildOfClass("Humanoid")
+    local cam = workspace.CurrentCamera
+    
+    if not hrp or not hum or not cam then return end
+    
+    hum.AutoRotate = false
+    isPlaying = true
+    loopMode = isLoop
+    
+    pcall(function() hrp:SetNetworkOwner(nil) end)
+    
+    stopBtn.BackgroundColor3 = Color3.fromRGB(255, 70, 90)
+    stopBtn.TextColor3 = Color3.new(1,1,1)
+    stopBtn.AutoButtonColor = true
+    
+    cam.CameraType = Enum.CameraType.Scriptable
+    
+    local index = 1
+    local prevCFrame = hrp.CFrame
+    
+    playConnection = RunService.RenderStepped:Connect(function(delta)
+        if not isPlaying then return end
+        
+        local steps = math.floor(playSpeed * delta * 60 + 0.5)
+        for _ = 1, steps do
+            if index > #actions then
+                if not loopMode then isPlaying = false break end
+                index = 1
+            end
+            
+            local act = actions[index]
+            hrp.CFrame = prevCFrame:Lerp(act.hrpCFrame, 0.85)
+            hrp.AssemblyLinearVelocity = act.velocity * 1.1
+            hum.Jump = act.jump
+            cam.CFrame = act.camCFrame
+            cam.FieldOfView = act.fov
+            
+            prevCFrame = hrp.CFrame
+            index += 1
+        end
+        
+        if not isPlaying then cleanupPlayback() end
+    end)
+end
+
+playSekali.MouseButton1Click:Connect(function() startPlayback(false) end)
+playUlang.MouseButton1Click:Connect(function() startPlayback(true) end)
+
+stopBtn.MouseButton1Click:Connect(function()
+    isPlaying = false
+    cleanupPlayback()
+end)
+
+clearBtn.MouseButton1Click:Connect(function()
+    actions = {}
+end)
+
+task.spawn(function()
+    while true do
+        task.wait(0.033)
+        if not recording then continue end
+        
+        local char = LocalPlayer.Character
+        if not char then continue end
+        
+        local hrp = char:FindFirstChild("HumanoidRootPart")
+        local hum = char:FindFirstChildOfClass("Humanoid")
+        local cam = workspace.CurrentCamera
+        
+        if not hrp or not hum or not cam then continue end
+        
+        local now = tick()
+        if now - lastTick < 0.032 then continue end
+        
+        table.insert(actions, {
+            hrpCFrame = hrp.CFrame,
+            velocity = hrp.AssemblyLinearVelocity,
+            jump = hum.Jump,
+            camCFrame = cam.CFrame,
+            fov = cam.FieldOfView
+        })
+        
+        lastTick = now
+    end
+end)
+
+updateSpeedButton()
