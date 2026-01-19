@@ -82,7 +82,7 @@ local title = Instance.new("TextLabel")
 title.Size = UDim2.new(1, 0, 0, 20)
 title.Position = UDim2.new(0, 0, 0, 5)
 title.BackgroundTransparency = 1
-title.Text = "🌟 Auto Block V3"
+title.Text = "ArchiveXNova V3"
 title.TextColor3 = Color3.new(1, 1, 1)
 title.Font = Enum.Font.GothamBold
 title.TextSize = 12
@@ -208,7 +208,7 @@ local lastPosition = nil
 -- Function to reset title
 local function resetTitle()
     task.wait(2)
-    title.Text = "🌟 Auto Block V3"
+    title.Text = "ArchiveXNova V3"
 end
 
 -- Function to update Status Label
