@@ -559,5 +559,3 @@ addHoverEffect(brightBtn)
 addHoverEffect(sharpBtn)
 addHoverEffect(quickThinkerBtn)
 addHoverEffect(openCloseBtn)
-
-print("✅ Simple GUI Library Loaded (Auto Block V3 - Super Smart with Fixed Scrolling)")
