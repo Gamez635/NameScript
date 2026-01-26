@@ -1,0 +1,632 @@
+local Players = game:GetService("Players")
+local CoreGui = game:GetService("CoreGui")
+local RunService = game:GetService("RunService")
+local HttpService = game:GetService("HttpService")
+local LocalPlayer = Players.LocalPlayer
+
+settings().Physics.PhysicsEnvironmentalThrottle = Enum.EnviromentalPhysicsThrottle.Disabled
+settings().Physics.AllowSleep = false
+
+-- CONFIG SAVE
+local SAVE_FOLDER = "ArchiveXNovaRecorder"
+local SAVE_PATH = SAVE_FOLDER .. "/"
+
+pcall(function()
+    if not isfolder(SAVE_FOLDER) then makefolder(SAVE_FOLDER) end
+end)
+
+-- GUI SETUP
+local gui = Instance.new("ScreenGui")
+gui.Name = "TrueRecorderV50-Fixed"
+gui.ResetOnSpawn = false
+gui.Parent = CoreGui
+
+local logoBtn = Instance.new("TextButton")
+logoBtn.Size = UDim2.new(0, 70, 0, 70)
+logoBtn.Position = UDim2.new(0, 15, 0, 15)
+logoBtn.BackgroundColor3 = Color3.fromRGB(25, 25, 45)
+logoBtn.Text = "R"
+logoBtn.TextColor3 = Color3.fromRGB(120, 255, 255)
+logoBtn.Font = Enum.Font.GothamBlack
+logoBtn.TextSize = 54
+logoBtn.Draggable = true
+logoBtn.Parent = gui
+Instance.new("UICorner", logoBtn).CornerRadius = UDim.new(1, 0)
+
+local stroke = Instance.new("UIStroke", logoBtn)
+stroke.Color = Color3.fromRGB(80, 255, 240)
+stroke.Thickness = 3.5
+stroke.Transparency = 0.25
+
+local main = Instance.new("Frame")
+main.Size = UDim2.new(0, 300, 0, 340)
+main.Position = UDim2.new(0.5, -150, 0.5, -170)
+main.BackgroundColor3 = Color3.fromRGB(14, 14, 24)
+main.BorderSizePixel = 0
+main.Active = true
+main.Draggable = true
+main.Visible = false
+main.Parent = gui
+Instance.new("UICorner", main).CornerRadius = UDim.new(0, 14)
+
+local top = Instance.new("Frame")
+top.Size = UDim2.new(1, 0, 0, 38)
+top.BackgroundColor3 = Color3.fromRGB(35, 20, 80)
+top.BorderSizePixel = 0
+top.Parent = main
+Instance.new("UICorner", top).CornerRadius = UDim.new(0, 14)
+
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, -45, 1, 0)
+title.Position = UDim2.new(0, 45, 0, 0)
+title.BackgroundTransparency = 1
+title.Text = "ArchiveXNova V3"
+title.TextColor3 = Color3.fromRGB(180, 240, 255)
+title.Font = Enum.Font.GothamBlack
+title.TextSize = 17
+title.TextXAlignment = Enum.TextXAlignment.Left
+title.Parent = top
+
+local count = Instance.new("TextLabel")
+count.Size = UDim2.new(0, 110, 0, 24)
+count.Position = UDim2.new(1, -120, 0, 7)
+count.BackgroundColor3 = Color3.fromRGB(70, 40, 160)
+count.Text = "Acts: 0"
+count.TextColor3 = Color3.fromRGB(200, 255, 240)
+count.Font = Enum.Font.GothamBold
+count.TextSize = 14
+count.Parent = top
+Instance.new("UICorner", count).CornerRadius = UDim.new(0, 8)
+
+local scrolling = Instance.new("ScrollingFrame")
+scrolling.Size = UDim2.new(1, -24, 1, -100)
+scrolling.Position = UDim2.new(0, 12, 0, 58)
+scrolling.BackgroundTransparency = 1
+scrolling.ScrollBarThickness = 3
+scrolling.ScrollBarImageColor3 = Color3.fromRGB(100, 220, 255)
+scrolling.CanvasSize = UDim2.new(0, 0, 0, 0)
+scrolling.Parent = main
+
+local uiList = Instance.new("UIListLayout")
+uiList.Padding = UDim.new(0, 8)
+uiList.SortOrder = Enum.SortOrder.LayoutOrder
+uiList.Parent = scrolling
+
+-- Save/Load Frame
+local saveLoadFrame = Instance.new("Frame")
+saveLoadFrame.Size = UDim2.new(0, 340, 0, 420)
+saveLoadFrame.Position = UDim2.new(0.5, -170, 0.5, -210)
+saveLoadFrame.BackgroundColor3 = Color3.fromRGB(12, 12, 22)
+saveLoadFrame.BorderSizePixel = 0
+saveLoadFrame.Visible = false
+saveLoadFrame.Parent = gui
+Instance.new("UICorner", saveLoadFrame).CornerRadius = UDim.new(0, 14)
+
+local slTitle = Instance.new("TextLabel")
+slTitle.Parent = saveLoadFrame
+slTitle.Size = UDim2.new(1, 0, 0, 40)
+slTitle.BackgroundTransparency = 1
+slTitle.Text = "Saved Recordings"
+slTitle.TextColor3 = Color3.fromRGB(160, 220, 255)
+slTitle.Font = Enum.Font.GothamBlack
+slTitle.TextSize = 18
+
+local slScroll = Instance.new("ScrollingFrame")
+slScroll.Parent = saveLoadFrame
+slScroll.Size = UDim2.new(1, -24, 1, -140)
+slScroll.Position = UDim2.new(0, 12, 0, 52)
+slScroll.BackgroundTransparency = 1
+slScroll.ScrollBarThickness = 3
+
+local slLayout = Instance.new("UIListLayout")
+slLayout.Parent = slScroll
+slLayout.Padding = UDim.new(0, 8)
+slLayout.SortOrder = Enum.SortOrder.LayoutOrder
+
+local closeSL = Instance.new("TextButton")
+closeSL.Parent = saveLoadFrame
+closeSL.Size = UDim2.new(0, 32, 0, 32)
+closeSL.Position = UDim2.new(1, -40, 0, 6)
+closeSL.BackgroundColor3 = Color3.fromRGB(220, 60, 90)
+closeSL.Text = "×"
+closeSL.TextColor3 = Color3.new(1,1,1)
+closeSL.Font = Enum.Font.GothamBold
+closeSL.TextSize = 20
+Instance.new("UICorner", closeSL).CornerRadius = UDim.new(0, 10)
+
+-- Variables
+local speedMultipliers = {0, 0.1, 0.2, 0.3, 0.4, 0.5, 1, 1.5, 2, 3, 4, 6, 8, 11, 20, 35, 50, 100, 150, 200, 300, 500, 600, 761, 800, 920}
+local speedNames = {"Ultra Very Slow", "Ultra Slow", "Glacial", "Snail Pace", "Very Slow", "Slow", "Normal", "Moderate", "Steady", "Brisk", "Fast", "Quick", "Very Fast", "Super Fast", "Ultra Fast", "Hyper Speed", "Lightning Fast", "Warp Speed", "GodSpeed", "BlackFlash", "Thawne", "Barry", "Wally", "Koro", "Goku", "Saitama"}
+
+local actions = {}
+local recording = false
+local lastTick = 0
+local isPlaying = false
+local playConnection = nil
+local loopMode = false
+local playSpeed = 1
+local currentSpeedIndex = 1
+
+-- Helper functions
+local function cframeToTable(cf)
+    if not cf then return nil end
+    local pos = cf.Position
+    local x,y,z = cf.XVector, cf.YVector, cf.ZVector
+    return {pos.X, pos.Y, pos.Z, x.X,x.Y,x.Z, y.X,y.Y,y.Z, z.X,z.Y,z.Z}
+end
+
+local function tableToCFrame(t)
+    if not t or #t ~= 12 then return CFrame.new() end
+    return CFrame.new(t[1],t[2],t[3], t[4],t[7],t[10], t[5],t[8],t[11], t[6],t[9],t[12])
+end
+
+local function createButton(name, col)
+    local b = Instance.new("TextButton")
+    b.Size = UDim2.new(1,-24,0,38)
+    b.BackgroundColor3 = col
+    b.Text = name
+    b.TextColor3 = Color3.new(1,1,1)
+    b.Font = Enum.Font.GothamBold
+    b.TextSize = 14
+    b.Parent = scrolling
+    Instance.new("UICorner", b).CornerRadius = UDim.new(0,10)
+    return b
+end
+
+local recBtn      = createButton("Record OFF", Color3.fromRGB(200, 50, 80))
+local playSekali  = createButton("Play Once", Color3.fromRGB(40, 200, 180))
+local playUlang   = createButton("Play Loop", Color3.fromRGB(140, 90, 220))
+local stopBtn     = createButton("STOP", Color3.fromRGB(90, 90, 110))
+local clearBtn    = createButton("Clear", Color3.fromRGB(180, 60, 90))
+local saveBtn     = createButton("Save", Color3.fromRGB(40, 140, 220))
+local loadListBtn = createButton("Load List", Color3.fromRGB(120, 80, 220))
+local speedBtn    = createButton("Speed: Normal (1x)", Color3.fromRGB(160, 120, 30))
+
+stopBtn.BackgroundColor3 = Color3.fromRGB(70, 70, 90)
+stopBtn.TextColor3 = Color3.fromRGB(210, 210, 230)
+stopBtn.AutoButtonColor = false
+
+uiList:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+    scrolling.CanvasSize = UDim2.new(0,0,0, uiList.AbsoluteContentSize.Y + 20)
+end)
+
+local function generateFileName()
+    return "ArchiveXNova_Rec_" .. os.date("%H%M_%d%b%y") .. ".json"
+end
+
+local function saveRecording()
+    if #actions < 10 then 
+        warn("Recording terlalu pendek (<10 actions)")
+        return 
+    end
+    
+    local serializable = {}
+    for _, act in ipairs(actions) do
+        local copy = {
+            velocity = act.velocity and {act.velocity.X, act.velocity.Y, act.velocity.Z},
+            jump = act.jump,
+            fov = act.fov
+        }
+        if act.hrpCFrame then copy.hrpCFrame = cframeToTable(act.hrpCFrame) end
+        if act.camCFrame then copy.camCFrame = cframeToTable(act.camCFrame) end
+        table.insert(serializable, copy)
+    end
+    
+    local filename = generateFileName()
+    local fullpath = SAVE_PATH .. filename
+    
+    local success, err = pcall(writefile, fullpath, HttpService:JSONEncode(serializable))
+    if success then
+        print("Saved → " .. fullpath)
+        task.delay(0.4, refreshLoadList)
+    else
+        warn("Save gagal: " .. tostring(err))
+    end
+end
+
+local function loadRecordingFromFile(filepath)
+    local success, content = pcall(readfile, filepath)
+    if not success then warn("Baca gagal: " .. content) return false end
+    
+    local success2, data = pcall(HttpService.JSONDecode, HttpService, content)
+    if not success2 or type(data) ~= "table" then warn("JSON rusak") return false end
+    
+    local loaded = {}
+    for _, raw in ipairs(data) do
+        local act = {
+            velocity = raw.velocity and Vector3.new(unpack(raw.velocity)),
+            jump = raw.jump,
+            fov = raw.fov
+        }
+        if raw.hrpCFrame then act.hrpCFrame = tableToCFrame(raw.hrpCFrame) end
+        if raw.camCFrame then act.camCFrame = tableToCFrame(raw.camCFrame) end
+        table.insert(loaded, act)
+    end
+    actions = loaded
+    print("Loaded " .. #actions .. " actions")
+    return true
+end
+
+local function renameFile(oldPath, newName)
+    if newName == "" then return false, "Nama tidak boleh kosong" end
+    newName = newName:gsub("[^%w%s%-%_]", ""):gsub("^%s+", ""):gsub("%s+$", "")
+    if newName == "" then return false, "Nama tidak valid" end
+    
+    local newFilename = newName .. ".json"
+    local newPath = SAVE_PATH .. newFilename
+    
+    if isfile(newPath) then return false, "Nama sudah ada" end
+    
+    local success, err = pcall(function()
+        local content = readfile(oldPath)
+        writefile(newPath, content)
+        delfile(oldPath)
+    end)
+    
+    if success then
+        print("Renamed: " .. oldPath .. " → " .. newPath)
+        return true, newPath
+    else
+        warn("Rename gagal: " .. tostring(err))
+        return false, "Gagal rename"
+    end
+end
+
+local function deleteFile(path)
+    local success, err = pcall(delfile, path)
+    if success then
+        print("Deleted: " .. path)
+        return true
+    else
+        warn("Delete gagal: " .. tostring(err))
+        return false
+    end
+end
+
+local function refreshLoadList()
+    for _, v in ipairs(slScroll:GetChildren()) do
+        if v:IsA("GuiObject") and v ~= slLayout then v:Destroy() end
+    end
+    
+    local files = listfiles(SAVE_FOLDER) or {}
+    local hasAny = false
+    
+    for _, path in ipairs(files) do
+        if path:match("%.json$") then
+            hasAny = true
+            local filename = path:match("[^/\\]+$") or path
+            local nameNoExt = filename:gsub("%.json$", "")
+            local acts = "?"
+            local dur = "?"
+            
+            local ok, cont = pcall(readfile, path)
+            if ok then
+                local ok2, d = pcall(HttpService.JSONDecode, HttpService, cont)
+                if ok2 and type(d) == "table" then
+                    acts = #d
+                    dur = math.floor((#d-1)*0.033*10)/10 .. "s"
+                end
+            end
+            
+            local entryFrame = Instance.new("Frame")
+            entryFrame.Size = UDim2.new(1, -12, 0, 60)
+            entryFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 50)
+            entryFrame.Parent = slScroll
+            Instance.new("UICorner", entryFrame).CornerRadius = UDim.new(0,8)
+            
+            local btnLoad = Instance.new("TextButton")
+            btnLoad.Size = UDim2.new(0.58, 0, 0.65, 0)  -- dikecilkan sedikit biar muat 2 tombol
+            btnLoad.Position = UDim2.new(0, 12, 0.1, 0)
+            btnLoad.BackgroundTransparency = 1
+            btnLoad.Text = nameNoExt .. "\nActs: " .. acts .. "  •  " .. dur
+            btnLoad.TextColor3 = Color3.fromRGB(200, 220, 255)
+            btnLoad.Font = Enum.Font.GothamSemibold
+            btnLoad.TextSize = 13
+            btnLoad.TextXAlignment = Enum.TextXAlignment.Left
+            btnLoad.TextWrapped = true
+            btnLoad.Parent = entryFrame
+            
+            btnLoad.MouseButton1Click:Connect(function()
+                if loadRecordingFromFile(path) then
+                    saveLoadFrame.Visible = false
+                end
+            end)
+            
+            local btnRename = Instance.new("TextButton")
+            btnRename.Size = UDim2.new(0, 70, 0, 26)
+            btnRename.Position = UDim2.new(1, -170, 0.5, -13)
+            btnRename.BackgroundColor3 = Color3.fromRGB(100, 70, 180)
+            btnRename.Text = "Rename"
+            btnRename.TextColor3 = Color3.new(1,1,1)
+            btnRename.Font = Enum.Font.GothamBold
+            btnRename.TextSize = 12
+            btnRename.Parent = entryFrame
+            Instance.new("UICorner", btnRename).CornerRadius = UDim.new(0,6)
+            
+            local btnDelete = Instance.new("TextButton")
+            btnDelete.Size = UDim2.new(0, 70, 0, 26)
+            btnDelete.Position = UDim2.new(1, -90, 0.5, -13)
+            btnDelete.BackgroundColor3 = Color3.fromRGB(200, 60, 80)
+            btnDelete.Text = "Delete"
+            btnDelete.TextColor3 = Color3.new(1,1,1)
+            btnDelete.Font = Enum.Font.GothamBold
+            btnDelete.TextSize = 12
+            btnDelete.Parent = entryFrame
+            Instance.new("UICorner", btnDelete).CornerRadius = UDim.new(0,6)
+            
+            -- Rename logic (sama seperti sebelumnya, dengan Save/Cancel dipisah)
+            btnRename.MouseButton1Click:Connect(function()
+                local renameFrame = Instance.new("Frame")
+                renameFrame.Size = UDim2.new(1, -24, 0, 50)
+                renameFrame.Position = UDim2.new(0,12,0,0)
+                renameFrame.BackgroundColor3 = Color3.fromRGB(20,20,35)
+                renameFrame.Parent = entryFrame
+                Instance.new("UICorner", renameFrame).CornerRadius = UDim.new(0,8)
+                
+                local txtBox = Instance.new("TextBox")
+                txtBox.Size = UDim2.new(0.55, 0, 0, 32)
+                txtBox.Position = UDim2.new(0.02, 0, 0.5, -16)
+                txtBox.BackgroundColor3 = Color3.fromRGB(40,40,60)
+                txtBox.Text = nameNoExt
+                txtBox.TextColor3 = Color3.new(1,1,1)
+                txtBox.Font = Enum.Font.Gotham
+                txtBox.TextSize = 14
+                txtBox.ClearTextOnFocus = false
+                txtBox.Parent = renameFrame
+                Instance.new("UICorner", txtBox).CornerRadius = UDim.new(0,6)
+                
+                local btnSave = Instance.new("TextButton")
+                btnSave.Size = UDim2.new(0, 80, 0, 32)
+                btnSave.Position = UDim2.new(0.60, 10, 0.5, -16)
+                btnSave.BackgroundColor3 = Color3.fromRGB(60, 180, 100)
+                btnSave.Text = "Save"
+                btnSave.TextColor3 = Color3.new(1,1,1)
+                btnSave.Font = Enum.Font.GothamBold
+                btnSave.TextSize = 14
+                btnSave.Parent = renameFrame
+                Instance.new("UICorner", btnSave).CornerRadius = UDim.new(0,6)
+                
+                local btnCancel = Instance.new("TextButton")
+                btnCancel.Size = UDim2.new(0, 80, 0, 32)
+                btnCancel.Position = UDim2.new(0.82, 0, 0.5, -16)
+                btnCancel.BackgroundColor3 = Color3.fromRGB(180, 60, 60)
+                btnCancel.Text = "Cancel"
+                btnCancel.TextColor3 = Color3.new(1,1,1)
+                btnCancel.Font = Enum.Font.GothamBold
+                btnCancel.TextSize = 14
+                btnCancel.Parent = renameFrame
+                Instance.new("UICorner", btnCancel).CornerRadius = UDim.new(0,6)
+                
+                btnSave.MouseButton1Click:Connect(function()
+                    local newN = txtBox.Text
+                    local success, msg = renameFile(path, newN)
+                    if success then
+                        renameFrame:Destroy()
+                        refreshLoadList()
+                    else
+                        warn(msg)
+                    end
+                end)
+                
+                btnCancel.MouseButton1Click:Connect(function()
+                    renameFrame:Destroy()
+                end)
+            end)
+            
+            -- Delete logic dengan konfirmasi
+            btnDelete.MouseButton1Click:Connect(function()
+                local confirmFrame = Instance.new("Frame")
+                confirmFrame.Size = UDim2.new(1, -24, 0, 50)
+                confirmFrame.Position = UDim2.new(0,12,0,0)
+                confirmFrame.BackgroundColor3 = Color3.fromRGB(30, 20, 40)
+                confirmFrame.Parent = entryFrame
+                Instance.new("UICorner", confirmFrame).CornerRadius = UDim.new(0,8)
+                
+                local lblConfirm = Instance.new("TextLabel")
+                lblConfirm.Size = UDim2.new(0.7, 0, 1, 0)
+                lblConfirm.Position = UDim2.new(0, 10, 0, 0)
+                lblConfirm.BackgroundTransparency = 1
+                lblConfirm.Text = "Yakin hapus '" .. nameNoExt .. "' ?"
+                lblConfirm.TextColor3 = Color3.fromRGB(255, 180, 180)
+                lblConfirm.Font = Enum.Font.GothamSemibold
+                lblConfirm.TextSize = 14
+                lblConfirm.TextXAlignment = Enum.TextXAlignment.Left
+                lblConfirm.Parent = confirmFrame
+                
+                local btnYes = Instance.new("TextButton")
+                btnYes.Size = UDim2.new(0, 70, 0, 28)
+                btnYes.Position = UDim2.new(0.75, -80, 0.5, -14)
+                btnYes.BackgroundColor3 = Color3.fromRGB(200, 60, 80)
+                btnYes.Text = "Yes"
+                btnYes.TextColor3 = Color3.new(1,1,1)
+                btnYes.Font = Enum.Font.GothamBold
+                btnYes.TextSize = 13
+                btnYes.Parent = confirmFrame
+                Instance.new("UICorner", btnYes).CornerRadius = UDim.new(0,6)
+                
+                local btnNo = Instance.new("TextButton")
+                btnNo.Size = UDim2.new(0, 70, 0, 28)
+                btnNo.Position = UDim2.new(0.9, -70, 0.5, -14)
+                btnNo.BackgroundColor3 = Color3.fromRGB(80, 80, 100)
+                btnNo.Text = "No"
+                btnNo.TextColor3 = Color3.new(1,1,1)
+                btnNo.Font = Enum.Font.GothamBold
+                btnNo.TextSize = 13
+                btnNo.Parent = confirmFrame
+                Instance.new("UICorner", btnNo).CornerRadius = UDim.new(0,6)
+                
+                btnYes.MouseButton1Click:Connect(function()
+                    if deleteFile(path) then
+                        confirmFrame:Destroy()
+                        refreshLoadList()
+                    end
+                end)
+                
+                btnNo.MouseButton1Click:Connect(function()
+                    confirmFrame:Destroy()
+                end)
+            end)
+        end
+    end
+    
+    if not hasAny then
+        local lbl = Instance.new("TextLabel")
+        lbl.Size = UDim2.new(1,0,0,30)
+        lbl.BackgroundTransparency = 1
+        lbl.Text = "Belum ada recording tersimpan"
+        lbl.TextColor3 = Color3.fromRGB(140,140,180)
+        lbl.Font = Enum.Font.Gotham
+        lbl.TextSize = 14
+        lbl.Parent = slScroll
+    end
+end
+
+local function updateSpeedButton()
+    playSpeed = speedMultipliers[currentSpeedIndex] or 1
+    speedBtn.Text = "Speed: " .. (speedNames[currentSpeedIndex] or "Normal") .. " (" .. playSpeed .. "x)"
+end
+
+local function cleanupPlayback()
+    workspace.CurrentCamera.CameraType = Enum.CameraType.Custom
+    local char = LocalPlayer.Character
+    if char then
+        local hum = char:FindFirstChildOfClass("Humanoid")
+        if hum then hum.AutoRotate = true hum.Jump = false end
+        local hrp = char:FindFirstChild("HumanoidRootPart")
+        if hrp then pcall(hrp.SetNetworkOwner, hrp, LocalPlayer) end
+    end
+    if playConnection then playConnection:Disconnect() playConnection = nil end
+    stopBtn.BackgroundColor3 = Color3.fromRGB(70,70,90)
+    stopBtn.TextColor3 = Color3.fromRGB(210,210,230)
+    stopBtn.AutoButtonColor = false
+end
+
+local function startPlayback(isLoop)
+    if isPlaying or #actions < 5 then return end
+    local char = LocalPlayer.Character
+    if not char then return end
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    local hum = char:FindFirstChildOfClass("Humanoid")
+    local cam = workspace.CurrentCamera
+    if not hrp or not hum or not cam then return end
+    
+    hum.AutoRotate = false
+    isPlaying = true
+    loopMode = isLoop
+    
+    pcall(hrp.SetNetworkOwner, hrp, nil)
+    
+    stopBtn.BackgroundColor3 = Color3.fromRGB(220, 60, 90)
+    stopBtn.TextColor3 = Color3.new(1,1,1)
+    stopBtn.AutoButtonColor = true
+    
+    cam.CameraType = Enum.CameraType.Scriptable
+    
+    local index = 1
+    
+    playConnection = RunService.RenderStepped:Connect(function(delta)
+        if not isPlaying then return end
+        if not LocalPlayer.Character or not hrp.Parent then isPlaying = false return end
+        
+        local steps = math.max(1, math.floor(playSpeed * delta * 60 + 0.4))
+        for _ = 1, steps do
+            if index > #actions then
+                if not loopMode then isPlaying = false break end
+                index = 1
+            end
+            local act = actions[index]
+            if not act then break end
+            
+            if act.hrpCFrame then hrp.CFrame = act.hrpCFrame end
+            if act.velocity then hrp.AssemblyLinearVelocity = act.velocity end
+            if act.camCFrame then cam.CFrame = act.camCFrame end
+            if act.fov then cam.FieldOfView = act.fov end
+            hum.Jump = act.jump or false
+            
+            index += 1
+        end
+        
+        if not isPlaying then cleanupPlayback() end
+    end)
+end
+
+-- EVENT CONNECTIONS
+logoBtn.MouseButton1Click:Connect(function()
+    main.Visible = not main.Visible
+    logoBtn.Text = main.Visible and "×" or "R"
+end)
+
+recBtn.MouseButton1Click:Connect(function()
+    recording = not recording
+    recBtn.Text = recording and "RECORDING..." or "Record OFF"
+    recBtn.BackgroundColor3 = recording and Color3.fromRGB(50, 220, 140) or Color3.fromRGB(200, 50, 80)
+end)
+
+speedBtn.MouseButton1Click:Connect(function()
+    currentSpeedIndex = (currentSpeedIndex % #speedMultipliers) + 1
+    updateSpeedButton()
+    if isPlaying then
+        isPlaying = false
+        if playConnection then playConnection:Disconnect() end
+        task.delay(0.1, function() startPlayback(loopMode) end)
+    end
+end)
+
+saveBtn.MouseButton1Click:Connect(saveRecording)
+loadListBtn.MouseButton1Click:Connect(function()
+    refreshLoadList()
+    saveLoadFrame.Visible = true
+end)
+closeSL.MouseButton1Click:Connect(function()
+    saveLoadFrame.Visible = false
+end)
+
+playSekali.MouseButton1Click:Connect(function() startPlayback(false) end)
+playUlang.MouseButton1Click:Connect(function() startPlayback(true) end)
+stopBtn.MouseButton1Click:Connect(function()
+    isPlaying = false
+    cleanupPlayback()
+end)
+clearBtn.MouseButton1Click:Connect(function()
+    actions = {}
+end)
+
+-- Recording loop
+task.spawn(function()
+    while true do
+        task.wait(0.033)
+        if not recording then continue end
+        
+        local char = LocalPlayer.Character
+        if not char then continue end
+        
+        local hrp = char:FindFirstChild("HumanoidRootPart")
+        local hum = char:FindFirstChildOfClass("Humanoid")
+        local cam = workspace.CurrentCamera
+        
+        if not hrp or not hum or not cam then continue end
+        
+        local now = tick()
+        if now - lastTick < 0.032 then continue end
+        
+        table.insert(actions, {
+            hrpCFrame = hrp.CFrame,
+            velocity = hrp.AssemblyLinearVelocity,
+            jump = hum.Jump,
+            camCFrame = cam.CFrame,
+            fov = cam.FieldOfView
+        })
+        
+        lastTick = now
+    end
+end)
+
+-- Init UI
+updateSpeedButton()
+
+task.spawn(function()
+    while true do
+        task.wait(0.5)
+        count.Text = "Acts: " .. #actions
+    end
+end)
