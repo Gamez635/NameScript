@@ -1,0 +1,284 @@
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local CoreGui = game:GetService("CoreGui")
+
+local player = Players.LocalPlayer
+local char = player.Character or player.CharacterAdded:Wait()
+local root = char:WaitForChild("HumanoidRootPart")
+
+local trailEnabled = false
+local trailColor = ColorSequence.new(Color3.fromRGB(200, 50, 255))
+local widthStart = 1.2
+local widthEnd = 0.3
+local lifetime = 2.5
+local spawnInterval = 0.06
+local shapeMode = "Straight"
+
+local activeTrails = {}
+local connection
+
+local function clearTrails()
+    for _, t in ipairs(activeTrails) do
+        if t then t:Destroy() end
+    end
+    activeTrails = {}
+end
+
+local function spawnTrailSegment()
+    if not trailEnabled or not root.Parent then return end
+    
+    local attach0 = Instance.new("Attachment")
+    attach0.Position = Vector3.new(0, -1.5, 0)
+    attach0.Parent = root
+    
+    local offset = Vector3.new(0, -3.5, 0)
+    
+    if shapeMode == "Wavy" then
+        local time = tick()
+        offset = offset + Vector3.new(math.sin(time*8)*1.2, 0, math.cos(time*8)*0.8)
+    elseif shapeMode == "Circle" then
+        local angle = tick() * 6
+        offset = offset + Vector3.new(math.cos(angle)*1.8, math.sin(angle)*1.8, 0)
+    elseif shapeMode == "Custom" then
+        local t = tick() % 4
+        offset = offset + Vector3.new(math.sin(t*3)*2, math.cos(t*5)*1.5 - 1, math.sin(t*4)*1)
+    end
+    
+    local attach1 = Instance.new("Attachment")
+    attach1.Position = offset
+    attach1.Parent = root
+    
+    local trail = Instance.new("Trail")
+    trail.Attachment0 = attach0
+    trail.Attachment1 = attach1
+    trail.Color = trailColor
+    trail.WidthScale = NumberSequence.new(widthStart, widthEnd)
+    trail.Lifetime = lifetime
+    trail.MinLength = 0.05
+    trail.LightEmission = 0.4
+    trail.LightInfluence = 0
+    trail.Enabled = true
+    trail.Parent = root
+    
+    table.insert(activeTrails, trail)
+    
+    task.delay(lifetime + 1, function()
+        if trail then trail:Destroy() end
+        table.remove(activeTrails, table.find(activeTrails, trail))
+    end)
+    
+    task.delay(lifetime + 2, function()
+        if attach0 then attach0:Destroy() end
+        if attach1 then attach1:Destroy() end
+    end)
+end
+
+local function startTrailLoop()
+    if connection then connection:Disconnect() end
+    connection = RunService.Heartbeat:Connect(function()
+        if trailEnabled then
+            spawnTrailSegment()
+        end
+    end)
+end
+
+local gui = Instance.new("ScreenGui")
+gui.Name = "CustomTrailGUI"
+gui.ResetOnSpawn = false
+gui.Parent = CoreGui
+
+local frame = Instance.new("Frame", gui)
+frame.Size = UDim2.new(0, 300, 0, 300)
+frame.Position = UDim2.new(0.5, -150, 0.5, -150)
+frame.BackgroundColor3 = Color3.fromRGB(15, 15, 22)
+frame.BorderSizePixel = 0
+
+Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 14)
+
+local title = Instance.new("TextLabel", frame)
+title.Size = UDim2.new(1,0,0,40)
+title.BackgroundTransparency = 1
+title.Text = "Custom Trail"
+title.TextColor3 = Color3.fromRGB(220, 220, 255)
+title.Font = Enum.Font.GothamBold
+title.TextSize = 18
+
+local close = Instance.new("TextButton", frame)
+close.Size = UDim2.new(0,35,0,35)
+close.Position = UDim2.new(1,-40,0,5)
+close.BackgroundTransparency = 1
+close.Text = "×"
+close.TextColor3 = Color3.fromRGB(255,70,70)
+close.Font = Enum.Font.GothamBold
+close.TextSize = 26
+close.MouseButton1Click:Connect(function()
+    gui:Destroy()
+    if connection then connection:Disconnect() end
+    clearTrails()
+end)
+
+local scroll = Instance.new("ScrollingFrame", frame)
+scroll.Size = UDim2.new(1,-16,1,-55)
+scroll.Position = UDim2.new(0,8,0,48)
+scroll.BackgroundTransparency = 1
+scroll.ScrollBarThickness = 5
+scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+
+local list = Instance.new("UIListLayout", scroll)
+list.Padding = UDim.new(0,9)
+list.SortOrder = Enum.SortOrder.LayoutOrder
+
+local preview = Instance.new("Frame", scroll)
+preview.Size = UDim2.new(1,-12,0,40)
+preview.BackgroundColor3 = trailColor.Keypoints[1].Value
+preview.BorderSizePixel = 0
+Instance.new("UICorner", preview).CornerRadius = UDim.new(0,9)
+
+local sliders = {}
+for _, ch in ipairs({{n="R", col=Color3.fromRGB(255,80,80)}, {n="G", col=Color3.fromRGB(80,255,100)}, {n="B", col=Color3.fromRGB(80,150,255)}}) do
+    local row = Instance.new("Frame", scroll)
+    row.Size = UDim2.new(1,-12,0,34)
+    row.BackgroundTransparency = 1
+    
+    local lbl = Instance.new("TextLabel", row)
+    lbl.Size = UDim2.new(0,30,1,0)
+    lbl.BackgroundTransparency = 1
+    lbl.Text = ch.n..":"
+    lbl.TextColor3 = ch.col
+    lbl.Font = Enum.Font.GothamSemibold
+    lbl.TextSize = 15
+    
+    local sframe = Instance.new("Frame", row)
+    sframe.Size = UDim2.new(1,-40,1,0)
+    sframe.Position = UDim2.new(0,35,0,0)
+    sframe.BackgroundColor3 = Color3.fromRGB(30,30,40)
+    Instance.new("UICorner", sframe).CornerRadius = UDim.new(0,7)
+    
+    local fill = Instance.new("Frame", sframe)
+    fill.Size = UDim2.new(0.8,0,1,0)
+    fill.BackgroundColor3 = ch.col
+    Instance.new("UICorner", fill).CornerRadius = UDim.new(0,7)
+    
+    local val = Instance.new("TextLabel", sframe)
+    val.Size = UDim2.new(1,0,1,0)
+    val.BackgroundTransparency = 1
+    val.Text = "200"
+    val.TextColor3 = Color3.new(1,1,1)
+    val.Font = Enum.Font.Gotham
+    val.TextSize = 14
+    
+    sliders[ch.n] = {fill=fill, val=val, frame=sframe}
+end
+
+local function updateColor()
+    local r = math.clamp(tonumber(sliders.R.val.Text) or 128, 0, 510)
+    local g = math.clamp(tonumber(sliders.G.val.Text) or 128, 0, 510)
+    local b = math.clamp(tonumber(sliders.B.val.Text) or 255, 0, 510)
+    trailColor = ColorSequence.new(Color3.fromRGB(r,g,b))
+    preview.BackgroundColor3 = trailColor.Keypoints[1].Value
+end
+
+for _, s in pairs(sliders) do
+    local drag = false
+    s.frame.InputBegan:Connect(function(inp)
+        if inp.UserInputType == Enum.UserInputType.MouseButton1 or inp.UserInputType == Enum.UserInputType.Touch then drag = true end
+    end)
+    s.frame.InputEnded:Connect(function(inp)
+        if inp.UserInputType == Enum.UserInputType.MouseButton1 or inp.UserInputType == Enum.UserInputType.Touch then drag = false end
+    end)
+    UserInputService.InputChanged:Connect(function(inp)
+        if not drag then return end
+        if inp.UserInputType ~= Enum.UserInputType.MouseMovement and inp.UserInputType ~= Enum.UserInputType.Touch then return end
+        local rel = math.clamp((inp.Position.X - s.frame.AbsolutePosition.X) / s.frame.AbsoluteSize.X, 0, 1)
+        local v = math.round(rel * 510)
+        s.val.Text = v
+        s.fill.Size = UDim2.new(rel,0,1,0)
+        updateColor()
+    end)
+end
+
+sliders.R.val.Text = "200"; sliders.R.fill.Size = UDim2.new(200/510,0,1,0)
+sliders.G.val.Text = "50" ; sliders.G.fill.Size = UDim2.new( 50/510,0,1,0)
+sliders.B.val.Text = "255"; sliders.B.fill.Size = UDim2.new(255/510,0,1,0)
+
+local function addBtn(text, callback)
+    local b = Instance.new("TextButton", scroll)
+    b.Size = UDim2.new(1,-12,0,44)
+    b.BackgroundColor3 = Color3.fromRGB(38,38,55)
+    b.BorderSizePixel = 0
+    b.Text = text
+    b.TextColor3 = Color3.new(0.98,0.98,1)
+    b.Font = Enum.Font.GothamSemibold
+    b.TextSize = 15
+    Instance.new("UICorner", b).CornerRadius = UDim.new(0,9)
+    b.MouseEnter:Connect(function() b.BackgroundColor3 = Color3.fromRGB(55,55,75) end)
+    b.MouseLeave:Connect(function() b.BackgroundColor3 = Color3.fromRGB(38,38,55) end)
+    b.MouseButton1Click:Connect(function() callback(b) end)
+end
+
+addBtn("Toggle Trail [OFF]", function(b)
+    trailEnabled = not trailEnabled
+    b.Text = "Toggle Trail ["..(trailEnabled and "ON" or "OFF").."]"
+    if trailEnabled then
+        clearTrails()
+        startTrailLoop()
+    else
+        if connection then connection:Disconnect() end
+        clearTrails()
+    end
+end)
+
+addBtn("Width Start: 1.2", function(b)
+    widthStart = widthStart + 0.4
+    if widthStart > 12 then widthStart = 0.4 end
+    b.Text = "Width Start: " .. string.format("%.1f", widthStart)
+end)
+
+addBtn("Width End: 0.3", function(b)
+    widthEnd = widthEnd + 0.2
+    if widthEnd > 8 then widthEnd = 0.1 end
+    b.Text = "Width End: " .. string.format("%.1f", widthEnd)
+end)
+
+addBtn("Lifetime: 2.5s", function(b)
+    lifetime = lifetime + 0.5
+    if lifetime > 20 then lifetime = 0.5 end
+    b.Text = "Lifetime: " .. string.format("%.1f", lifetime) .. "s"
+end)
+
+addBtn("Shape: Straight", function(b)
+    local modes = {"Straight", "Wavy", "Circle", "Custom"}
+    local idx = table.find(modes, shapeMode) or 1
+    idx = (idx % #modes) + 1
+    shapeMode = modes[idx]
+    b.Text = "Shape: " .. shapeMode
+end)
+
+local dragging, dragStart, startPos
+frame.InputBegan:Connect(function(i)
+    if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+        dragging = true
+        dragStart = i.Position
+        startPos = frame.Position
+    end
+end)
+frame.InputEnded:Connect(function(i)
+    if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then dragging = false end
+end)
+UserInputService.InputChanged:Connect(function(i)
+    if dragging and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then
+        local delta = i.Position - dragStart
+        frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
+end)
+
+player.CharacterAdded:Connect(function(newChar)
+    char = newChar
+    root = newChar:WaitForChild("HumanoidRootPart")
+    if trailEnabled then
+        task.wait(0.5)
+        clearTrails()
+        startTrailLoop()
+    end
+end)
