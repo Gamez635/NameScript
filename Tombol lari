@@ -1,0 +1,145 @@
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local CoreGui = game:GetService("CoreGui")
+
+local player = Players.LocalPlayer
+local sprintSpeed = 32
+local walkSpeed = 16
+local sprinting = false
+local debounce = false
+
+local gui = Instance.new("ScreenGui")
+gui.Name = "SprintGUI"
+gui.ResetOnSpawn = false
+gui.Parent = CoreGui
+
+local frame = Instance.new("Frame", gui)
+frame.Size = UDim2.new(0, 220, 0, 180)
+frame.Position = UDim2.new(0, 20, 0.5, -90)
+frame.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+frame.BorderSizePixel = 0
+frame.Active = true
+
+local corner = Instance.new("UICorner", frame)
+corner.CornerRadius = UDim.new(0, 12)
+
+local title = Instance.new("TextLabel", frame)
+title.Size = UDim2.new(1, 0, 0, 35)
+title.BackgroundTransparency = 1
+title.Text = "Sprint Control"
+title.TextColor3 = Color3.fromRGB(220, 220, 255)
+title.Font = Enum.Font.GothamBold
+title.TextSize = 16
+
+local close = Instance.new("TextButton", frame)
+close.Size = UDim2.new(0, 28, 0, 28)
+close.Position = UDim2.new(1, -32, 0, 4)
+close.BackgroundTransparency = 1
+close.Text = "×"
+close.TextColor3 = Color3.fromRGB(255, 80, 80)
+close.Font = Enum.Font.GothamBold
+close.TextSize = 20
+close.MouseButton1Click:Connect(function() gui:Destroy() end)
+
+local sprintBtn = Instance.new("TextButton", frame)
+sprintBtn.Size = UDim2.new(1, -20, 0, 45)
+sprintBtn.Position = UDim2.new(0, 10, 0, 45)
+sprintBtn.BackgroundColor3 = Color3.fromRGB(45, 45, 65)
+sprintBtn.Text = "Sprint [OFF]"
+sprintBtn.TextColor3 = Color3.new(1,1,1)
+sprintBtn.Font = Enum.Font.GothamSemibold
+sprintBtn.TextSize = 16
+Instance.new("UICorner", sprintBtn).CornerRadius = UDim.new(0, 8)
+
+local speedLabel = Instance.new("TextLabel", frame)
+speedLabel.Size = UDim2.new(1, -20, 0, 25)
+speedLabel.Position = UDim2.new(0, 10, 0, 105)
+speedLabel.BackgroundTransparency = 1
+speedLabel.Text = "Speed: 32"
+speedLabel.TextColor3 = Color3.fromRGB(150, 220, 255)
+speedLabel.Font = Enum.Font.Gotham
+speedLabel.TextSize = 14
+
+local speedBtn = Instance.new("TextButton", frame)
+speedBtn.Size = UDim2.new(1, -20, 0, 35)
+speedBtn.Position = UDim2.new(0, 10, 0, 135)
+speedBtn.BackgroundColor3 = Color3.fromRGB(45, 45, 65)
+speedBtn.Text = "Speed +1"
+speedBtn.TextColor3 = Color3.new(1,1,1)
+speedBtn.Font = Enum.Font.GothamSemibold
+speedBtn.TextSize = 14
+Instance.new("UICorner", speedBtn).CornerRadius = UDim.new(0, 8)
+
+local function updateSprint()
+    if not player.Character then return end
+    local humanoid = player.Character:FindFirstChildWhichIsA("Humanoid")
+    if not humanoid then return end
+    
+    if sprinting and humanoid.MoveDirection.Magnitude > 0 then
+        humanoid.WalkSpeed = sprintSpeed
+        sprintBtn.Text = "Sprint [ON]"
+        sprintBtn.BackgroundColor3 = Color3.fromRGB(40, 80, 40)
+    else
+        humanoid.WalkSpeed = walkSpeed
+        sprintBtn.Text = "Sprint [OFF]"
+        sprintBtn.BackgroundColor3 = Color3.fromRGB(45, 45, 65)
+    end
+    
+    speedLabel.Text = "Speed: " .. sprintSpeed
+end
+
+sprintBtn.MouseButton1Click:Connect(function()
+    if debounce then return end
+    debounce = true
+    sprinting = not sprinting
+    updateSprint()
+    task.delay(0.1, function() debounce = false end)
+end)
+
+speedBtn.MouseButton1Click:Connect(function()
+    sprintSpeed = sprintSpeed + 1
+    if sprintSpeed > 100 then sprintSpeed = 16 end
+    updateSprint()
+end)
+
+RunService.RenderStepped:Connect(function()
+    if sprinting then
+        updateSprint()
+    end
+end)
+
+player.CharacterAdded:Connect(function(char)
+    char:WaitForChild("Humanoid", 5)
+    sprinting = false
+    task.delay(0.5, updateSprint)
+end)
+
+local dragging, dragStart, startPos
+frame.InputBegan:Connect(function(i)
+    if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+        dragging = true
+        dragStart = i.Position
+        startPos = frame.Position
+    end
+end)
+
+frame.InputEnded:Connect(function(i)
+    if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+        dragging = false
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(i)
+    if dragging and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then
+        local delta = i.Position - dragStart
+        frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
+end)
+
+if player.Character then
+    task.spawn(function()
+        player.Character:WaitForChild("Humanoid")
+        updateSprint()
+    end)
+end
