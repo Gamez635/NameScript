@@ -1,0 +1,440 @@
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local CoreGui = game:GetService("CoreGui")
+local Camera = workspace.CurrentCamera
+local LocalPlayer = Players.LocalPlayer
+
+local ESPFolder = Instance.new("Folder")
+ESPFolder.Name = "RainbowESP"
+ESPFolder.Parent = CoreGui
+
+local connections = {}
+local objects = {}
+local rainbowPhases = {}
+local randomColors = {}
+local TracerColor = Color3.fromRGB(0, 255, 255)  -- default cyan
+
+local PrettyColors = {
+    Color3.fromRGB(255,80,120), Color3.fromRGB(80,255,180),
+    Color3.fromRGB(100,180,255), Color3.fromRGB(255,220,80),
+    Color3.fromRGB(220,100,255), Color3.fromRGB(255,255,100),
+    Color3.fromRGB(255,140,80), Color3.fromRGB(120,255,120),
+}
+
+local Settings = { TeamCheck = true }
+local currentMode = nil
+
+local function hsvToColor(h, s, v)
+    h = h % 1 local i = math.floor(h*6) local f = h*6-i
+    local p = v*(1-s) local q = v*(1-f*s) local t = v*(1-(1-f)*s) i = i%6
+    if i==0 then return Color3.new(v,t,p)
+    elseif i==1 then return Color3.new(q,v,p)
+    elseif i==2 then return Color3.new(p,v,t)
+    elseif i==3 then return Color3.new(p,q,v)
+    elseif i==4 then return Color3.new(t,p,v)
+    else return Color3.new(v,p,q) end
+end
+
+local function getRoot(char)
+    return char and (char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("Torso") or char:FindFirstChild("UpperTorso"))
+end
+
+local function getHead(char)
+    return char and (char:FindFirstChild("Head") or char:FindFirstChildWhichIsA("BasePart"))
+end
+
+local function isTeammate(plr)
+    if not Settings.TeamCheck then return false end
+    if not LocalPlayer.Team then return false end
+    return plr.Team == LocalPlayer.Team
+end
+
+local function safeDestroy(item)
+    pcall(function() if item then item:Destroy() end end)
+end
+
+local function clearAll()
+    for _, conn in ipairs(connections) do pcall(function() conn:Disconnect() end) end
+    for _, obj in ipairs(objects) do safeDestroy(obj) end
+    ESPFolder:ClearAllChildren()
+    table.clear(connections) table.clear(objects)
+    table.clear(rainbowPhases) table.clear(randomColors)
+end
+
+local function add(obj) if obj then table.insert(objects, obj) end end
+local function addConnection(conn) if conn then table.insert(connections, conn) end end
+
+local function createHighlight(player, rainbow)
+    if isTeammate(player) then return end
+    local char = player.Character if not char then return end
+    local root = getRoot(char) if not root then return end
+
+    local box = Instance.new("BoxHandleAdornment")
+    box.Adornee = root box.Size = Vector3.new(4.4,6.6,2.6)
+    box.Transparency = 0.6 box.AlwaysOnTop = true box.ZIndex = 5
+    box.Parent = ESPFolder add(box)
+
+    local outline = Instance.new("SelectionBox")
+    outline.Adornee = char outline.LineThickness = 0.07 outline.Transparency = 0
+    outline.Color3 = Color3.new(1,1,1) outline.Parent = ESPFolder add(outline)
+
+    local phase = rainbowPhases[player] or math.random()
+    rainbowPhases[player] = phase
+    local fixed = randomColors[player] or PrettyColors[math.random(1,#PrettyColors)]
+    randomColors[player] = fixed
+
+    addConnection(RunService.Heartbeat:Connect(function(dt)
+        if not (char.Parent and root.Parent) then return end
+        if rainbow then
+            phase = (phase + dt * 0.5) % 1 rainbowPhases[player] = phase
+            local col = hsvToColor(phase, 1, 1)
+            box.Color3 = col outline.Color3 = col
+        else
+            box.Color3 = fixed outline.Color3 = fixed:Lerp(Color3.new(1,1,1), 0.3)
+        end
+    end))
+end
+
+local function createHeadDot(player, rainbow)
+    if isTeammate(player) then return end
+    local char = player.Character if not char then return end
+    local head = getHead(char) if not head then return end
+
+    local dot = Instance.new("SphereHandleAdornment")
+    dot.Adornee = head dot.Size = Vector3.new(1.1,1.1,1.1)
+    dot.Transparency = 0.2 dot.AlwaysOnTop = true dot.ZIndex = 10
+    dot.Color3 = Color3.fromRGB(255,50,50) dot.Parent = ESPFolder add(dot)
+
+    local phase = rainbowPhases[player] or 0
+    addConnection(RunService.Heartbeat:Connect(function(dt)
+        if not (char.Parent and head.Parent) then return end
+        if rainbow then
+            phase = (phase + dt * 0.7) % 1 rainbowPhases[player] = phase
+            dot.Color3 = hsvToColor(phase, 1, 1)
+        end
+    end))
+end
+
+local function createChams(player, rainbow)
+    if isTeammate(player) then return end
+    local char = player.Character if not char then return end
+
+    local phase = rainbowPhases[player] or math.random()
+    rainbowPhases[player] = phase
+    local fixed = randomColors[player] or PrettyColors[math.random(1,#PrettyColors)]
+    randomColors[player] = fixed
+
+    local parts = {}
+    for _, part in ipairs(char:GetDescendants()) do
+        if part:IsA("BasePart") or part:IsA("MeshPart") then
+            local h = Instance.new("Highlight")
+            h.Adornee = part h.FillTransparency = 0.4 h.OutlineTransparency = 0
+            h.FillColor = Color3.new(1,1,1) h.OutlineColor = Color3.new(1,1,1)
+            h.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop h.Parent = ESPFolder
+            add(h) table.insert(parts, h)
+        end
+    end
+
+    addConnection(RunService.Heartbeat:Connect(function(dt)
+        if not char.Parent then return end
+        local col = rainbow and hsvToColor((phase + dt*0.55)%1, 1, 1) or fixed
+        if rainbow then phase = (phase + dt*0.55)%1 rainbowPhases[player] = phase end
+        for _, h in ipairs(parts) do
+            h.FillColor = col h.OutlineColor = col:Lerp(Color3.new(1,1,1), 0.4)
+        end
+    end))
+end
+
+local function createBoxESP(player)
+    if isTeammate(player) then return end
+    local char = player.Character if not char then return end
+    local root = getRoot(char) if not root then return end
+
+    local box = Instance.new("BoxHandleAdornment")
+    box.Adornee = root box.Size = Vector3.new(4,7,2)
+    box.Transparency = 0.75 box.AlwaysOnTop = true
+    box.Color3 = Color3.fromRGB(0,255,100) box.ZIndex = 4
+    box.Parent = ESPFolder add(box)
+end
+
+local function createNameTag(player)
+    if isTeammate(player) then return end
+    local root = getRoot(player.Character) if not root then return end
+
+    local bb = Instance.new("BillboardGui")
+    bb.Adornee = root bb.Size = UDim2.new(0,180,0,45)
+    bb.StudsOffset = Vector3.new(0,3.2,0) bb.AlwaysOnTop = true
+    bb.Parent = ESPFolder add(bb)
+
+    local label = Instance.new("TextLabel", bb)
+    label.Size = UDim2.new(1,0,1,0) label.BackgroundTransparency = 1
+    label.Text = player.Name label.TextColor3 = Color3.new(1,1,1)
+    label.TextStrokeTransparency = 0.4 label.TextStrokeColor3 = Color3.new(0,0,0)
+    label.Font = Enum.Font.GothamBold label.TextSize = 14
+end
+
+local function createDistance(player)
+    if isTeammate(player) then return end
+    local root = getRoot(player.Character) if not root then return end
+
+    local bb = Instance.new("BillboardGui")
+    bb.Adornee = root bb.Size = UDim2.new(0,140,0,30)
+    bb.StudsOffset = Vector3.new(0,1.8,0) bb.AlwaysOnTop = true
+    bb.Parent = ESPFolder add(bb)
+
+    local label = Instance.new("TextLabel", bb)
+    label.Size = UDim2.new(1,0,1,0) label.BackgroundTransparency = 1
+    label.TextColor3 = Color3.fromRGB(80,255,255) label.TextStrokeTransparency = 0.5
+    label.Font = Enum.Font.Gotham label.TextSize = 13
+
+    addConnection(RunService.RenderStepped:Connect(function()
+        local lpRoot = getRoot(LocalPlayer.Character)
+        if lpRoot then label.Text = math.floor((lpRoot.Position - root.Position).Magnitude + 0.5) .. "s" end
+    end))
+end
+
+local function createTracer(player, fromPos, colorMode)
+    if isTeammate(player) then return end
+    local line = Drawing.new("Line")
+    line.Thickness = 2.5 line.Transparency = 0.95
+
+    local phase = rainbowPhases[player] or 0
+
+    addConnection(RunService.RenderStepped:Connect(function(dt)
+        local char = player.Character local root = getRoot(char)
+        if not (root and Camera) then line.Visible = false return end
+
+        local screenPos, onScreen = Camera:WorldToViewportPoint(root.Position + Vector3.new(0,0.5,0))
+        if not onScreen then line.Visible = false return end
+
+        local from
+        if fromPos == "Left" then from = Vector2.new(0, screenPos.Y)
+        elseif fromPos == "Right" then from = Vector2.new(Camera.ViewportSize.X, screenPos.Y)
+        elseif fromPos == "Top" then from = Vector2.new(screenPos.X, 0)
+        elseif fromPos == "Bottom" then from = Vector2.new(screenPos.X, Camera.ViewportSize.Y)
+        elseif fromPos == "Center" then from = Camera.ViewportSize / 2
+        else line.Visible = false return end
+
+        line.From = from line.To = Vector2.new(screenPos.X, screenPos.Y) line.Visible = true
+
+        if colorMode == "Rainbow" then
+            phase = (phase + dt * 0.6) % 1 rainbowPhases[player] = phase
+            line.Color = hsvToColor(phase, 1, 1)
+        else
+            line.Color = TracerColor
+        end
+    end))
+
+    player.AncestryChanged:Connect(function(_, parent)
+        if not parent then line:Remove() end
+    end)
+    add(line)
+end
+
+local function createHealthBar(player)
+    if isTeammate(player) then return end
+    local char = player.Character if not char then return end
+    local root = getRoot(char) if not root then return end
+    local hum = char:FindFirstChildOfClass("Humanoid") if not hum then return end
+
+    local bb = Instance.new("BillboardGui")
+    bb.Adornee = root bb.Size = UDim2.new(0,60,0,8)
+    bb.StudsOffset = Vector3.new(0,3,0) bb.AlwaysOnTop = true
+    bb.Parent = ESPFolder add(bb)
+
+    local bg = Instance.new("Frame", bb) bg.Size = UDim2.new(1,0,1,0)
+    bg.BackgroundColor3 = Color3.fromRGB(0,0,0) bg.BorderSizePixel = 0
+    Instance.new("UICorner", bg).CornerRadius = UDim.new(1,0)
+
+    local bar = Instance.new("Frame", bg) bar.Size = UDim2.new(1,0,1,0)
+    bar.BackgroundColor3 = Color3.fromRGB(0,255,0) bar.BorderSizePixel = 0
+    Instance.new("UICorner", bar).CornerRadius = UDim.new(1,0)
+
+    addConnection(hum.HealthChanged:Connect(function()
+        local ratio = hum.Health / hum.MaxHealth
+        bar.Size = UDim2.new(ratio,0,1,0)
+        bar.BackgroundColor3 = Color3.fromRGB(255*(1-ratio),255*ratio,0)
+    end))
+end
+
+local function applyToPlayer(player, mode)
+    if player == LocalPlayer then return end
+    if not player.Character then return end
+
+    if mode == "HighlightRandom" then createHighlight(player, false)
+    elseif mode == "HighlightRainbow" then createHighlight(player, true)
+    elseif mode == "HeadDotRainbow" then createHeadDot(player, true)
+    elseif mode == "ChamsRainbow" then createChams(player, true)
+    elseif mode == "BoxESP" then createBoxESP(player)
+    elseif mode == "Name" then createNameTag(player)
+    elseif mode == "Distance" then createDistance(player)
+    elseif mode == "Health" then createHealthBar(player)
+    elseif mode == "AllTracersRainbow" then
+        for _,pos in {"Left","Right","Top","Bottom","Center"} do
+            createTracer(player, pos, "Rainbow")
+        end
+    elseif mode == "TracerLeft" or mode == "TracerRight" or mode == "TracerTop" or mode == "TracerBottom" or mode == "TracerCenter" then
+        local pos = mode:gsub("Tracer", "")
+        createTracer(player, pos, "Custom")
+    elseif type(mode) == "function" then mode(player)
+    end
+end
+
+local function applyCurrentMode()
+    clearAll()
+    if not currentMode then return end
+
+    for _, player in ipairs(Players:GetPlayers()) do
+        applyToPlayer(player, currentMode)
+    end
+end
+
+local function setMode(mode)
+    currentMode = mode
+    applyCurrentMode()
+end
+
+Players.PlayerAdded:Connect(function(player)
+    player.CharacterAdded:Connect(function(char)
+        task.wait(0.4)
+        if currentMode then applyToPlayer(player, currentMode) end
+    end)
+    if player.Character then task.wait(0.4) if currentMode then applyToPlayer(player, currentMode) end end
+end)
+
+for _, player in ipairs(Players:GetPlayers()) do
+    if player ~= LocalPlayer then
+        player.CharacterAdded:Connect(function()
+            task.wait(0.4)
+            if currentMode then applyToPlayer(player, currentMode) end
+        end)
+    end
+end
+
+local sg = Instance.new("ScreenGui")
+sg.Name = "RainbowESP_GUI" sg.ResetOnSpawn = false sg.Parent = CoreGui
+
+local frame = Instance.new("Frame", sg)
+frame.Size = UDim2.new(0,300,0,340) frame.Position = UDim2.new(0.5,-150,0.5,-170)
+frame.BackgroundColor3 = Color3.fromRGB(18,18,28) frame.BorderSizePixel = 0
+
+Instance.new("UICorner", frame).CornerRadius = UDim.new(0,14)
+Instance.new("UIStroke", frame).Color = Color3.fromRGB(0,200,255)
+
+local title = Instance.new("TextLabel", frame)
+title.Size = UDim2.new(1,0,0,36) title.BackgroundTransparency = 1
+title.Text = "Rainbow ESP" title.TextColor3 = Color3.fromRGB(120,255,255)
+title.Font = Enum.Font.GothamBlack title.TextSize = 17
+
+local close = Instance.new("TextButton", frame)
+close.Size = UDim2.new(0,34,0,34) close.Position = UDim2.new(1,-38,0,4)
+close.BackgroundTransparency = 1 close.Text = "×"
+close.TextColor3 = Color3.fromRGB(255,80,80) close.Font = Enum.Font.GothamBold
+close.TextSize = 24
+close.MouseButton1Click:Connect(function() sg:Destroy() clearAll() currentMode = nil end)
+
+local scroll = Instance.new("ScrollingFrame", frame)
+scroll.Size = UDim2.new(1,-16,0,200) scroll.Position = UDim2.new(0,8,0,40)
+scroll.BackgroundTransparency = 1 scroll.ScrollBarThickness = 5
+scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+
+local list = Instance.new("UIListLayout", scroll)
+list.Padding = UDim.new(0,6) list.SortOrder = Enum.SortOrder.LayoutOrder
+
+local colorSection = Instance.new("Frame", frame)
+colorSection.Size = UDim2.new(1,-16,0,70)
+colorSection.Position = UDim2.new(0,8,1,-85)
+colorSection.BackgroundTransparency = 1
+
+local colorLabel = Instance.new("TextLabel", colorSection)
+colorLabel.Size = UDim2.new(1,0,0,20)
+colorLabel.BackgroundTransparency = 1
+colorLabel.Text = "Tracer Color (R,G,B)"
+colorLabel.TextColor3 = Color3.new(1,1,1)
+colorLabel.Font = Enum.Font.GothamSemibold
+colorLabel.TextSize = 13
+
+local colorInput = Instance.new("TextBox", colorSection)
+colorInput.Size = UDim2.new(1,0,0,30)
+colorInput.Position = UDim2.new(0,0,0,25)
+colorInput.BackgroundColor3 = Color3.fromRGB(35,35,45)
+colorInput.TextColor3 = Color3.new(1,1,1)
+colorInput.PlaceholderText = "contoh: 255,100,50"
+colorInput.Text = "0,255,255"
+colorInput.Font = Enum.Font.Gotham
+colorInput.TextSize = 13
+Instance.new("UICorner", colorInput).CornerRadius = UDim.new(0,6)
+
+local colorPreview = Instance.new("Frame", colorSection)
+colorPreview.Size = UDim2.new(0,40,0,40)
+colorPreview.Position = UDim2.new(1,-50,0,15)
+colorPreview.BackgroundColor3 = TracerColor
+Instance.new("UICorner", colorPreview).CornerRadius = UDim.new(0,8)
+Instance.new("UIStroke", colorPreview).Color = Color3.new(1,1,1)
+
+colorInput.FocusLost:Connect(function(enterPressed)
+    if not enterPressed then return end
+    local text = colorInput.Text:gsub("%s+", "")
+    local r,g,b = text:match("(%d+),(%d+),(%d+)")
+    if r and g and b then
+        local rr,gg,bb = tonumber(r), tonumber(g), tonumber(b)
+        if rr and gg and bb and rr<=255 and gg<=255 and bb<=255 then
+            TracerColor = Color3.fromRGB(rr,gg,bb)
+            colorPreview.BackgroundColor3 = TracerColor
+            if currentMode and currentMode:match("Tracer") then
+                applyCurrentMode()  -- refresh tracer dengan warna baru
+            end
+        end
+    end
+end)
+
+local function btn(text, modeValue)
+    local b = Instance.new("TextButton")
+    b.Size = UDim2.new(1,0,0,36) b.BackgroundColor3 = Color3.fromRGB(32,32,45)
+    b.BorderSizePixel = 0 b.Text = text b.TextColor3 = Color3.new(0.96,0.96,0.96)
+    b.Font = Enum.Font.GothamSemibold b.TextSize = 13
+    Instance.new("UICorner", b).CornerRadius = UDim.new(0,9)
+    local s = Instance.new("UIStroke", b) s.Color = Color3.fromRGB(70,70,90)
+    b.MouseEnter:Connect(function() s.Color = Color3.fromRGB(0,180,255) end)
+    b.MouseLeave:Connect(function() s.Color = Color3.fromRGB(70,70,90) end)
+    b.MouseButton1Click:Connect(function() setMode(modeValue) end)
+    b.Parent = scroll
+end
+
+btn("Highlight (Random)", "HighlightRandom")
+btn("Highlight Rainbow", "HighlightRainbow")
+btn("Head Dot Rainbow", "HeadDotRainbow")
+btn("Chams Rainbow", "ChamsRainbow")
+btn("3D Box ESP", "BoxESP")
+btn("Name Tags", "Name")
+btn("Distance", "Distance")
+btn("Health Bar", "Health")
+btn("All Tracers Rainbow", "AllTracersRainbow")
+btn("Tracer Left", "TracerLeft")
+btn("Tracer Right", "TracerRight")
+btn("Tracer Top", "TracerTop")
+btn("Tracer Bottom", "TracerBottom")
+btn("Tracer Center", "TracerCenter")
+btn("Name + Distance", function(p) createNameTag(p) createDistance(p) end)
+btn("Team Check: "..(Settings.TeamCheck and "ON" or "OFF"), function()
+    Settings.TeamCheck = not Settings.TeamCheck
+    if currentMode then applyCurrentMode() end
+end)
+btn("OFF / Clear All", function() clearAll() currentMode = nil end)
+
+local dragging, dragStart, startPos
+frame.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true dragStart = input.Position startPos = frame.Position
+    end
+end)
+frame.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then dragging = false end
+end)
+UserInputService.InputChanged:Connect(function(input)
+    if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+        local delta = input.Position - dragStart
+        frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
+end)
