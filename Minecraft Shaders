@@ -1,0 +1,363 @@
+local CoreGui = game:GetService("CoreGui")
+local UserInputService = game:GetService("UserInputService")
+local Lighting = game:GetService("Lighting")
+local TweenService = game:GetService("TweenService")
+
+local GUI = Instance.new("ScreenGui")
+GUI.Name = "MinecraftShaders_GUI"
+GUI.ResetOnSpawn = false
+GUI.Parent = CoreGui
+
+local Main = Instance.new("Frame")
+Main.Size = UDim2.new(0, 200, 0, 520)
+Main.Position = UDim2.new(0.5, -100, 0.5, -260)
+Main.BackgroundColor3 = Color3.fromRGB(18, 18, 24)
+Main.BorderSizePixel = 0
+Main.ClipsDescendants = true
+Main.Parent = GUI
+
+Instance.new("UICorner", Main).CornerRadius = UDim.new(0, 14)
+
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(1, 0, 0, 40)
+Title.BackgroundTransparency = 1
+Title.Text = "⛏️ Minecraft Shaders"
+Title.TextColor3 = Color3.fromRGB(100, 220, 100)
+Title.Font = Enum.Font.GothamBlack
+Title.TextSize = 20
+Title.Parent = Main
+
+local CloseBtn = Instance.new("TextButton")
+CloseBtn.Size = UDim2.new(0, 28, 0, 28)
+CloseBtn.Position = UDim2.new(1, -32, 0, 6)
+CloseBtn.BackgroundTransparency = 1
+CloseBtn.Text = "×"
+CloseBtn.TextColor3 = Color3.fromRGB(255, 80, 80)
+CloseBtn.Font = Enum.Font.GothamBlack
+CloseBtn.TextSize = 22
+CloseBtn.Parent = Main
+
+CloseBtn.MouseButton1Click:Connect(function()
+    GUI:Destroy()
+end)
+
+local Scroll = Instance.new("ScrollingFrame")
+Scroll.Size = UDim2.new(1, -14, 1, -48)
+Scroll.Position = UDim2.new(0, 7, 0, 42)
+Scroll.BackgroundTransparency = 1
+Scroll.ScrollBarThickness = 4
+Scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+Scroll.ScrollingDirection = Enum.ScrollingDirection.Y
+Scroll.Parent = Main
+
+local Layout = Instance.new("UIListLayout", Scroll)
+Layout.Padding = UDim.new(0, 6)
+Layout.SortOrder = Enum.SortOrder.LayoutOrder
+
+local function CreateButton(text, callback, order)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(1, -10, 0, 36)
+    btn.BackgroundColor3 = Color3.fromRGB(38, 38, 48)
+    btn.Text = text
+    btn.TextColor3 = Color3.new(1, 1, 1)
+    btn.Font = Enum.Font.GothamSemibold
+    btn.TextSize = 14
+    btn.TextXAlignment = Enum.TextXAlignment.Left
+    
+    local pad = Instance.new("UIPadding", btn)
+    pad.PaddingLeft = UDim.new(0, 16)
+    
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 8)
+    
+    btn.LayoutOrder = order or 0
+    btn.Parent = Scroll
+    
+    btn.MouseButton1Click:Connect(callback)
+    
+    btn.MouseEnter:Connect(function()
+        TweenService:Create(btn, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(60, 60, 75)}):Play()
+    end)
+    btn.MouseLeave:Connect(function()
+        TweenService:Create(btn, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(38, 38, 48)}):Play()
+    end)
+    
+    return btn
+end
+
+local original = {
+    Technology = Lighting.Technology,
+    Brightness = Lighting.Brightness,
+    Ambient = Lighting.Ambient,
+    OutdoorAmbient = Lighting.OutdoorAmbient,
+    FogEnd = Lighting.FogEnd,
+    FogStart = Lighting.FogStart,
+    FogColor = Lighting.FogColor,
+    GlobalShadows = Lighting.GlobalShadows
+}
+
+-- Effects
+local SunRays = Lighting:FindFirstChildOfClass("SunRaysEffect") or Instance.new("SunRaysEffect", Lighting)
+local Bloom = Instance.new("BloomEffect", Lighting)
+local CC_Main = Instance.new("ColorCorrectionEffect", Lighting)
+local Grain = Instance.new("ColorCorrectionEffect", Lighting); Grain.Name = "FilmGrain"
+local Blur = Instance.new("BlurEffect", Lighting)
+
+Bloom.Size = 24
+Bloom.Threshold = 1.0
+Grain.Contrast = 0
+
+local activeShader = nil
+
+local function ResetAll()
+    Lighting.Technology = original.Technology
+    Lighting.Brightness = original.Brightness
+    Lighting.Ambient = original.Ambient
+    Lighting.OutdoorAmbient = original.OutdoorAmbient
+    Lighting.FogEnd = original.FogEnd
+    Lighting.FogStart = original.FogStart
+    Lighting.FogColor = original.FogColor
+    Lighting.GlobalShadows = original.GlobalShadows
+    
+    SunRays.Intensity = 0
+    SunRays.Spread = 0.25
+    Bloom.Intensity = 0
+    CC_Main.Enabled = false
+    Grain.Contrast = 0
+    Blur.Size = 0
+    activeShader = nil
+end
+
+-- ⛏️ MINECRAFT RTX STYLE (Default)
+local function MinecraftRTX()
+    ResetAll()
+    activeShader = "RTX"
+    
+    Lighting.Technology = Enum.Technology.Future
+    Lighting.Brightness = 1.65
+    Lighting.GlobalShadows = true
+    Lighting.EnvironmentDiffuseScale = 0.5
+    Lighting.EnvironmentSpecularScale = 0.65
+    
+    Lighting.Ambient = Color3.fromRGB(105, 115, 135)
+    Lighting.OutdoorAmbient = Color3.fromRGB(135, 145, 165)
+    Lighting.FogEnd = 950
+    Lighting.FogColor = Color3.fromRGB(135, 165, 255)
+    
+    SunRays.Intensity = 1.0
+    SunRays.Spread = 0.9
+    Bloom.Intensity = 3.5
+    Bloom.Size = 30
+    Bloom.Threshold = 0.9
+    
+    CC_Main.Enabled = true
+    CC_Main.Brightness = 0.20
+    CC_Main.Contrast = 0.40
+    CC_Main.Saturation = 0.60
+    CC_Main.TintColor = Color3.fromRGB(255, 245, 220)
+    Grain.Contrast = 0.10
+end
+
+-- 🌅 MINECRAFT SUNSET
+local function MinecraftSunset()
+    ResetAll()
+    activeShader = "Sunset"
+    
+    Lighting.Technology = Enum.Technology.Future
+    Lighting.Brightness = 1.4
+    Lighting.GlobalShadows = true
+    
+    Lighting.Ambient = Color3.fromRGB(180, 120, 80)
+    Lighting.OutdoorAmbient = Color3.fromRGB(220, 140, 90)
+    Lighting.FogEnd = 800
+    Lighting.FogColor = Color3.fromRGB(220, 140, 100)
+    
+    SunRays.Intensity = 1.2
+    SunRays.Spread = 0.95
+    Bloom.Intensity = 2.8
+    Bloom.Size = 28
+    
+    CC_Main.Enabled = true
+    CC_Main.Brightness = 0.15
+    CC_Main.Contrast = 0.35
+    CC_Main.Saturation = 0.45
+    CC_Main.TintColor = Color3.fromRGB(255, 180, 100)
+    Grain.Contrast = 0.12
+end
+
+-- 🌙 MINECRAFT NIGHT
+local function MinecraftNight()
+    ResetAll()
+    activeShader = "Night"
+    
+    Lighting.Technology = Enum.Technology.Future
+    Lighting.Brightness = 0.6
+    Lighting.GlobalShadows = true
+    
+    Lighting.Ambient = Color3.fromRGB(40, 50, 80)
+    Lighting.OutdoorAmbient = Color3.fromRGB(20, 30, 60)
+    Lighting.FogEnd = 600
+    Lighting.FogColor = Color3.fromRGB(30, 40, 70)
+    
+    SunRays.Intensity = 0.3
+    SunRays.Spread = 0.7
+    Bloom.Intensity = 2.2
+    Bloom.Size = 25
+    Bloom.Threshold = 0.85
+    
+    CC_Main.Enabled = true
+    CC_Main.Brightness = -0.1
+    CC_Main.Contrast = 0.5
+    CC_Main.Saturation = 0.3
+    CC_Main.TintColor = Color3.fromRGB(100, 120, 200)
+    Grain.Contrast = 0.15
+end
+
+-- 🔥 MINECRAFT NETHER
+local function MinecraftNether()
+    ResetAll()
+    activeShader = "Nether"
+    
+    Lighting.Technology = Enum.Technology.Future
+    Lighting.Brightness = 1.2
+    Lighting.GlobalShadows = true
+    
+    Lighting.Ambient = Color3.fromRGB(120, 60, 40)
+    Lighting.OutdoorAmbient = Color3.fromRGB(160, 80, 50)
+    Lighting.FogEnd = 400
+    Lighting.FogColor = Color3.fromRGB(140, 70, 40)
+    
+    SunRays.Intensity = 0.8
+    SunRays.Spread = 0.6
+    Bloom.Intensity = 4.0
+    Bloom.Size = 35
+    Bloom.Threshold = 0.8
+    
+    CC_Main.Enabled = true
+    CC_Main.Brightness = 0.25
+    CC_Main.Contrast = 0.6
+    CC_Main.Saturation = -0.2
+    CC_Main.TintColor = Color3.fromRGB(255, 120, 60)
+    Grain.Contrast = 0.18
+end
+
+-- 🌊 MINECRAFT OCEAN
+local function MinecraftOcean()
+    ResetAll()
+    activeShader = "Ocean"
+    
+    Lighting.Technology = Enum.Technology.Future
+    Lighting.Brightness = 1.3
+    Lighting.GlobalShadows = true
+    
+    Lighting.Ambient = Color3.fromRGB(80, 120, 160)
+    Lighting.OutdoorAmbient = Color3.fromRGB(100, 150, 200)
+    Lighting.FogEnd = 1200
+    Lighting.FogColor = Color3.fromRGB(90, 140, 200)
+    
+    SunRays.Intensity = 0.7
+    SunRays.Spread = 1.0
+    Bloom.Intensity = 2.5
+    Bloom.Size = 26
+    
+    CC_Main.Enabled = true
+    CC_Main.Brightness = 0.18
+    CC_Main.Contrast = 0.35
+    CC_Main.Saturation = 0.7
+    CC_Main.TintColor = Color3.fromRGB(120, 200, 255)
+    Blur.Size = 4
+    Grain.Contrast = 0.08
+end
+
+-- 🍃 MINECRAFT FOREST
+local function MinecraftForest()
+    ResetAll()
+    activeShader = "Forest"
+    
+    Lighting.Technology = Enum.Technology.Future
+    Lighting.Brightness = 1.5
+    Lighting.GlobalShadows = true
+    
+    Lighting.Ambient = Color3.fromRGB(90, 140, 80)
+    Lighting.OutdoorAmbient = Color3.fromRGB(110, 170, 90)
+    Lighting.FogEnd = 700
+    Lighting.FogColor = Color3.fromRGB(100, 160, 90)
+    
+    SunRays.Intensity = 0.9
+    SunRays.Spread = 0.85
+    Bloom.Intensity = 2.0
+    Bloom.Size = 24
+    
+    CC_Main.Enabled = true
+    CC_Main.Brightness = 0.12
+    CC_Main.Contrast = 0.42
+    CC_Main.Saturation = 0.65
+    CC_Main.TintColor = Color3.fromRGB(140, 220, 120)
+    Grain.Contrast = 0.09
+end
+
+-- 🎲 RANDOM MINECRAFT SHADER
+local function RandomMinecraft()
+    local shaders = {MinecraftRTX, MinecraftSunset, MinecraftNight, MinecraftNether, MinecraftOcean, MinecraftForest}
+    shaders[math.random(1, #shaders)]()
+end
+
+-- Buttons
+local order = 0
+
+CreateButton("⛏️ RTX Style (Default)", MinecraftRTX, order+1)
+CreateButton("🌅 Sunset", MinecraftSunset, order+2)
+CreateButton("🌙 Night", MinecraftNight, order+3)
+CreateButton("🔥 Nether", MinecraftNether, order+4)
+CreateButton("🌊 Ocean", MinecraftOcean, order+5)
+CreateButton("🍃 Forest", MinecraftForest, order+6)
+
+local sep1 = Instance.new("Frame", Scroll)
+sep1.Size = UDim2.new(1, 0, 0, 4)
+sep1.BackgroundColor3 = Color3.fromRGB(60, 60, 80)
+sep1.BorderSizePixel = 0
+sep1.LayoutOrder = 100
+
+CreateButton("🎲 Random Shader", RandomMinecraft, 101)
+CreateButton("⟳ Reset", ResetAll, 102)
+
+-- Draggable
+local dragging, dragInput, dragStart, startPos
+
+local function updateDrag(input)
+    local delta = input.Position - dragStart
+    Main.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X,
+                              startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+end
+
+Main.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true
+        dragStart = input.Position
+        startPos = Main.Position
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                dragging = false
+            end
+        end)
+    end
+end)
+
+Main.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+        dragInput = input
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if dragging and input == dragInput then
+        updateDrag(input)
+    end
+end)
+
+-- Hotkey Insert
+UserInputService.InputBegan:Connect(function(input, gp)
+    if gp then return end
+    if input.KeyCode == Enum.KeyCode.Insert then
+        GUI.Enabled = not GUI.Enabled
+    end
+end)
