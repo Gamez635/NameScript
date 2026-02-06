@@ -1,0 +1,479 @@
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+local CoreGui = game:GetService("CoreGui")
+
+local player = Players.LocalPlayer
+
+local RANKS = {
+	["Owner"]       = {Main = Color3.fromRGB(255,  70,  85), Symbol = "👑 "},
+	["Co-Owner"]    = {Main = Color3.fromRGB(255, 160,   0), Symbol = "⚔️ "},
+	["Developer"]   = {Main = Color3.fromRGB(0,   200, 255), Symbol = "⚙️ "},
+	["Admin"]       = {Main = Color3.fromRGB(0,   255, 140), Symbol = "🛡️ "},
+	["Moderator"]   = {Main = Color3.fromRGB(200, 100, 255), Symbol = "🔧 "},
+	["VIP"]         = {Main = Color3.fromRGB(255, 215,   0), Symbol = "✨ "},
+	["Player"]      = {Main = Color3.fromRGB(210, 210, 210), Symbol = ""},
+}
+
+local settings = {
+	currentRank     = "Owner",
+	customText      = nil,
+	prefix          = "",
+	suffix          = "",
+	useCustomColor  = false,
+	customColor     = Color3.fromRGB(255,255,255),
+	rainbowMode     = false,
+	showTag         = true,
+	tagHeight       = 3.5,
+	font            = Enum.Font.GothamBlack,
+	textSize        = 24,
+	bold            = true,
+	italic          = false,
+	strokeThickness = 1.5,
+	strokeColor     = Color3.new(0,0,0),
+}
+
+local currentBillboard = nil
+local heartbeatConn    = nil
+local rainbowHue       = 0
+local mainGui          = nil
+local toggleButton     = nil
+local statusLabel      = nil
+
+local function destroyBillboard()
+	if currentBillboard then
+		currentBillboard:Destroy()
+		currentBillboard = nil
+	end
+	if heartbeatConn then
+		heartbeatConn:Disconnect()
+		heartbeatConn = nil
+	end
+end
+
+local function createOrUpdateBillboard()
+	destroyBillboard()
+	if not settings.showTag then return end
+
+	local char = player.Character
+	if not char then return end
+	local head = char:FindFirstChild("Head")
+	if not head then return end
+
+	local bb = Instance.new("BillboardGui")
+	bb.Name = "FloatingTag"
+	bb.Adornee = head
+	bb.Size = UDim2.new(10, 0, 1.8, 0)
+	bb.StudsOffset = Vector3.new(0, settings.tagHeight, 0)
+	bb.AlwaysOnTop = true
+	bb.LightInfluence = 0
+	bb.MaxDistance = 220
+	bb.ResetOnSpawn = false
+	bb.Parent = head
+	currentBillboard = bb
+
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.new(1,0,1,0)
+	label.BackgroundTransparency = 1
+	label.Font = settings.font
+	label.TextSize = settings.textSize
+	label.RichText = true
+	label.TextXAlignment = Enum.TextXAlignment.Center
+	label.TextYAlignment = Enum.TextYAlignment.Center
+	label.TextStrokeTransparency = 1
+	label.TextStrokeColor3 = settings.strokeColor
+	label.TextTransparency = 1
+	label.Parent = bb
+
+	TweenService:Create(label, TweenInfo.new(0.6, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), {
+		TextTransparency = 0,
+		TextStrokeTransparency = 1 - (settings.strokeThickness * 0.33)
+	}):Play()
+
+	local function refresh()
+		if not bb or not bb.Parent then return end
+
+		local rankData = RANKS[settings.currentRank] or RANKS.Player
+		local col = settings.useCustomColor and settings.customColor or rankData.Main
+
+		if settings.rainbowMode then
+			rainbowHue = (rainbowHue + 0.9) % 360
+			col = Color3.fromHSV(rainbowHue / 360, 0.96, 1)
+		end
+
+		local txt = (settings.prefix or "") .. (settings.customText or (rankData.Symbol .. settings.currentRank)) .. (settings.suffix or "")
+
+		local boldOpen   = settings.bold and "<b>" or ""
+		local boldClose  = settings.bold and "</b>" or ""
+		local italicOpen = settings.italic and "<i>" or ""
+		local italicClose = settings.italic and "</i>" or ""
+
+		label.Text = boldOpen .. italicOpen ..
+			'<font color="rgb(' .. math.floor(col.R*255) .. ',' .. math.floor(col.G*255) .. ',' .. math.floor(col.B*255) .. ')">' ..
+			txt ..
+			'</font>' ..
+			italicClose .. boldClose
+
+		label.TextStrokeTransparency = 1 - (settings.strokeThickness * 0.33)
+	end
+
+	if settings.rainbowMode then
+		heartbeatConn = RunService.Heartbeat:Connect(refresh)
+	else
+		refresh()
+	end
+end
+
+local function createMainGUI()
+	if mainGui then mainGui:Destroy() end
+
+	mainGui = Instance.new("ScreenGui")
+	mainGui.Name = "FloatingPanel"
+	mainGui.ResetOnSpawn = false
+	mainGui.Parent = CoreGui
+
+	local frame = Instance.new("Frame", mainGui)
+	frame.Size = UDim2.new(0, 300, 0, 300)
+	frame.Position = UDim2.new(0.5, -150, 0.5, -150)
+	frame.BackgroundColor3 = Color3.fromRGB(18,18,26)
+	frame.BorderSizePixel = 0
+	Instance.new("UICorner", frame).CornerRadius = UDim.new(0,12)
+
+	local titleBar = Instance.new("Frame", frame)
+	titleBar.Size = UDim2.new(1,0,0,34)
+	titleBar.BackgroundColor3 = Color3.fromRGB(28,28,38)
+	titleBar.BorderSizePixel = 0
+
+	local titleLbl = Instance.new("TextLabel", titleBar)
+	titleLbl.Size = UDim2.new(1,-44,1,0)
+	titleLbl.Position = UDim2.new(0,12,0,0)
+	titleLbl.BackgroundTransparency = 1
+	titleLbl.Text = "Floating Rank Tag"
+	titleLbl.TextColor3 = Color3.new(1,1,1)
+	titleLbl.Font = Enum.Font.GothamBold
+	titleLbl.TextSize = 15
+	titleLbl.TextXAlignment = Enum.TextXAlignment.Left
+
+	local closeBtn = Instance.new("TextButton", titleBar)
+	closeBtn.Size = UDim2.new(0,30,0,30)
+	closeBtn.Position = UDim2.new(1,-34,0,2)
+	closeBtn.BackgroundColor3 = Color3.fromRGB(210,60,60)
+	closeBtn.Text = "×"
+	closeBtn.TextColor3 = Color3.new(1,1,1)
+	closeBtn.Font = Enum.Font.GothamBold
+	closeBtn.TextSize = 18
+	Instance.new("UICorner", closeBtn).CornerRadius = UDim.new(0,8)
+	closeBtn.MouseButton1Click:Connect(function()
+		frame.Visible = false
+	end)
+
+	statusLabel = Instance.new("TextLabel", frame)
+	statusLabel.Size = UDim2.new(1,-20,0,14)
+	statusLabel.Position = UDim2.new(0,10,1,-20)
+	statusLabel.BackgroundTransparency = 1
+	statusLabel.Text = ""
+	statusLabel.TextColor3 = Color3.fromRGB(120,255,180)
+	statusLabel.Font = Enum.Font.Gotham
+	statusLabel.TextSize = 11
+	statusLabel.TextXAlignment = Enum.TextXAlignment.Center
+
+	local scroll = Instance.new("ScrollingFrame", frame)
+	scroll.Size = UDim2.new(1,-16,1,-50)
+	scroll.Position = UDim2.new(0,8,0,38)
+	scroll.BackgroundTransparency = 1
+	scroll.ScrollBarThickness = 4
+	scroll.ScrollBarImageColor3 = Color3.fromRGB(80,80,100)
+	scroll.CanvasSize = UDim2.new(0,0,0,0)
+
+	local listLayout = Instance.new("UIListLayout", scroll)
+	listLayout.SortOrder = Enum.SortOrder.LayoutOrder
+	listLayout.Padding = UDim.new(0,5)
+	listLayout.FillDirection = Enum.FillDirection.Vertical
+
+	listLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+		scroll.CanvasSize = UDim2.new(0,0,0, listLayout.AbsoluteContentSize.Y + 16)
+	end)
+
+	local dragging, dragStart, startPos = false, nil, nil
+	titleBar.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+			dragging = true
+			dragStart = input.Position
+			startPos = frame.Position
+		end
+	end)
+
+	titleBar.InputChanged:Connect(function(input)
+		if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+			local delta = input.Position - dragStart
+			frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+		end
+	end)
+
+	UserInputService.InputEnded:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+			dragging = false
+		end
+	end)
+
+	local function addHeader(text)
+		local l = Instance.new("TextLabel")
+		l.Size = UDim2.new(1,0,0,22)
+		l.BackgroundTransparency = 1
+		l.Text = text
+		l.TextColor3 = Color3.fromRGB(140,180,255)
+		l.Font = Enum.Font.GothamSemibold
+		l.TextSize = 13
+		l.TextXAlignment = Enum.TextXAlignment.Left
+		l.Parent = scroll
+	end
+
+	local function addToggle(name, initial, callback)
+		local f = Instance.new("Frame")
+		f.Size = UDim2.new(1,0,0,30)
+		f.BackgroundTransparency = 1
+		f.Parent = scroll
+
+		local lbl = Instance.new("TextLabel", f)
+		lbl.Size = UDim2.new(0.68,0,1,0)
+		lbl.BackgroundTransparency = 1
+		lbl.Text = name
+		lbl.TextColor3 = Color3.new(1,1,1)
+		lbl.Font = Enum.Font.Gotham
+		lbl.TextSize = 12
+		lbl.TextXAlignment = Enum.TextXAlignment.Left
+
+		local btn = Instance.new("TextButton", f)
+		btn.Size = UDim2.new(0.28,0,0.78,0)
+		btn.Position = UDim2.new(0.7,0,0.11,0)
+		btn.BackgroundColor3 = initial and Color3.fromRGB(65,200,120) or Color3.fromRGB(110,110,120)
+		btn.Text = initial and "ON" or "OFF"
+		btn.TextColor3 = Color3.new(1,1,1)
+		btn.Font = Enum.Font.GothamSemibold
+		btn.TextSize = 12
+		Instance.new("UICorner", btn).CornerRadius = UDim.new(0,6)
+
+		btn.MouseButton1Click:Connect(function()
+			initial = not initial
+			btn.BackgroundColor3 = initial and Color3.fromRGB(65,200,120) or Color3.fromRGB(110,110,120)
+			btn.Text = initial and "ON" or "OFF"
+			callback(initial)
+		end)
+	end
+
+	local function addDropdown(name, options, default, callback)
+		local f = Instance.new("Frame")
+		f.Size = UDim2.new(1,0,0,30)
+		f.BackgroundTransparency = 1
+		f.Parent = scroll
+
+		local lbl = Instance.new("TextLabel", f)
+		lbl.Size = UDim2.new(0.4,0,1,0)
+		lbl.BackgroundTransparency = 1
+		lbl.Text = name
+		lbl.TextColor3 = Color3.new(1,1,1)
+		lbl.Font = Enum.Font.Gotham
+		lbl.TextSize = 12
+		lbl.TextXAlignment = Enum.TextXAlignment.Left
+
+		local btn = Instance.new("TextButton", f)
+		btn.Size = UDim2.new(0.58,0,1,0)
+		btn.Position = UDim2.new(0.42,0,0,0)
+		btn.BackgroundColor3 = Color3.fromRGB(40,40,52)
+		btn.Text = default
+		btn.TextColor3 = Color3.new(1,1,1)
+		btn.Font = Enum.Font.Gotham
+		btn.TextSize = 12
+		Instance.new("UICorner", btn).CornerRadius = UDim.new(0,6)
+
+		local current = default
+		btn.MouseButton1Click:Connect(function()
+			local idx = table.find(options, current) or 1
+			idx = (idx % #options) + 1
+			current = options[idx]
+			btn.Text = current
+			callback(current)
+		end)
+	end
+
+	local function addTextbox(name, default, callback)
+		local f = Instance.new("Frame")
+		f.Size = UDim2.new(1,0,0,30)
+		f.BackgroundTransparency = 1
+		f.Parent = scroll
+
+		local lbl = Instance.new("TextLabel", f)
+		lbl.Size = UDim2.new(0.38,0,1,0)
+		lbl.BackgroundTransparency = 1
+		lbl.Text = name
+		lbl.TextColor3 = Color3.new(1,1,1)
+		lbl.Font = Enum.Font.Gotham
+		lbl.TextSize = 12
+		lbl.TextXAlignment = Enum.TextXAlignment.Left
+
+		local tb = Instance.new("TextBox", f)
+		tb.Size = UDim2.new(0.6,0,0.9,0)
+		tb.Position = UDim2.new(0.4,0,0.05,0)
+		tb.BackgroundColor3 = Color3.fromRGB(40,40,52)
+		tb.Text = default or ""
+		tb.PlaceholderText = "Type here..."
+		tb.TextColor3 = Color3.new(1,1,1)
+		tb.Font = Enum.Font.Gotham
+		tb.TextSize = 12
+		tb.ClearTextOnFocus = false
+		Instance.new("UICorner", tb).CornerRadius = UDim.new(0,6)
+
+		tb.FocusLost:Connect(function(enter)
+			if enter then
+				callback(tb.Text)
+			end
+		end)
+	end
+
+	local function addSlider(name, min, max, default, callback)
+		local f = Instance.new("Frame")
+		f.Size = UDim2.new(1,0,0,34)
+		f.BackgroundTransparency = 1
+		f.Parent = scroll
+
+		local lbl = Instance.new("TextLabel", f)
+		lbl.Size = UDim2.new(0.5,0,0,16)
+		lbl.BackgroundTransparency = 1
+		lbl.Text = name .. ": " .. string.format("%.1f", default)
+		lbl.TextColor3 = Color3.new(1,1,1)
+		lbl.Font = Enum.Font.Gotham
+		lbl.TextSize = 12
+		lbl.TextXAlignment = Enum.TextXAlignment.Left
+
+		local slider = Instance.new("TextButton", f)
+		slider.Size = UDim2.new(1,0,0,6)
+		slider.Position = UDim2.new(0,0,0,22)
+		slider.BackgroundColor3 = Color3.fromRGB(60,60,80)
+		slider.Text = ""
+		Instance.new("UICorner", slider).CornerRadius = UDim.new(1,0)
+
+		local fill = Instance.new("Frame", slider)
+		fill.Size = UDim2.new((default-min)/(max-min), 0, 1, 0)
+		fill.BackgroundColor3 = Color3.fromRGB(100,180,255)
+		fill.BorderSizePixel = 0
+		Instance.new("UICorner", fill).CornerRadius = UDim.new(1,0)
+
+		local draggingSlider = false
+		slider.InputBegan:Connect(function(inp)
+			if inp.UserInputType == Enum.UserInputType.MouseButton1 or inp.UserInputType == Enum.UserInputType.Touch then
+				draggingSlider = true
+			end
+		end)
+
+		slider.InputEnded:Connect(function(inp)
+			if inp.UserInputType == Enum.UserInputType.MouseButton1 or inp.UserInputType == Enum.UserInputType.Touch then
+				draggingSlider = false
+			end
+		end)
+
+		UserInputService.InputChanged:Connect(function(inp)
+			if draggingSlider and (inp.UserInputType == Enum.UserInputType.MouseMovement or inp.UserInputType == Enum.UserInputType.Touch) then
+				local relX = math.clamp((inp.Position.X - slider.AbsolutePosition.X) / slider.AbsoluteSize.X, 0, 1)
+				fill.Size = UDim2.new(relX, 0, 1, 0)
+				local val = min + (max - min) * relX
+				lbl.Text = name .. ": " .. string.format("%.1f", val)
+				callback(val)
+			end
+		end)
+	end
+
+	addHeader("Rank & Text")
+	addDropdown("Rank", {"Owner","Co-Owner","Developer","Admin","Moderator","VIP","Player"}, settings.currentRank, function(v)
+		settings.currentRank = v
+		createOrUpdateBillboard()
+	end)
+
+	addTextbox("Custom Text", settings.customText or "", function(t)
+		settings.customText = t ~= "" and t or nil
+		createOrUpdateBillboard()
+	end)
+
+	addTextbox("Prefix", settings.prefix, function(t)
+		settings.prefix = t
+		createOrUpdateBillboard()
+	end)
+
+	addTextbox("Suffix", settings.suffix, function(t)
+		settings.suffix = t
+		createOrUpdateBillboard()
+	end)
+
+	addHeader("Visibility & Position")
+	addToggle("Show Tag", settings.showTag, function(v)
+		settings.showTag = v
+		createOrUpdateBillboard()
+	end)
+
+	addSlider("Tag Height", 2.0, 6.0, settings.tagHeight, function(v)
+		settings.tagHeight = v
+		createOrUpdateBillboard()
+	end)
+
+	addHeader("Style")
+	addDropdown("Font", {"GothamBlack","GothamBold","SourceSansBold","Arcade","Fantasy","Cartoon"}, "GothamBlack", function(v)
+		settings.font = Enum.Font[v]
+		createOrUpdateBillboard()
+	end)
+
+	addToggle("Bold", settings.bold, function(v) settings.bold = v createOrUpdateBillboard() end)
+	addToggle("Italic", settings.italic, function(v) settings.italic = v createOrUpdateBillboard() end)
+	addToggle("Rainbow Mode", settings.rainbowMode, function(v)
+		settings.rainbowMode = v
+		createOrUpdateBillboard()
+	end)
+
+	addToggle("Custom Color", settings.useCustomColor, function(v)
+		settings.useCustomColor = v
+		createOrUpdateBillboard()
+	end)
+
+	addHeader("Color & Stroke")
+	addSlider("Stroke Thickness", 0, 3, settings.strokeThickness, function(v)
+		settings.strokeThickness = v
+		createOrUpdateBillboard()
+	end)
+
+	local r,g,b = settings.customColor.R*255, settings.customColor.G*255, settings.customColor.B*255
+	addSlider("R", 0, 255, r, function(v) r = v settings.customColor = Color3.fromRGB(r,g,b) createOrUpdateBillboard() end)
+	addSlider("G", 0, 255, g, function(v) g = v settings.customColor = Color3.fromRGB(r,g,b) createOrUpdateBillboard() end)
+	addSlider("B", 0, 255, b, function(v) b = v settings.customColor = Color3.fromRGB(r,g,b) createOrUpdateBillboard() end)
+end
+
+local function createToggleButton()
+	if toggleButton then toggleButton:Destroy() end
+
+	toggleButton = Instance.new("TextButton")
+	toggleButton.Size = UDim2.new(0,52,0,52)
+	toggleButton.Position = UDim2.new(0, 20, 0, 20)
+	toggleButton.BackgroundColor3 = Color3.fromRGB(50, 130, 255)
+	toggleButton.Text = "Rank"
+	toggleButton.TextColor3 = Color3.new(1,1,1)
+	toggleButton.Font = Enum.Font.GothamBlack
+	toggleButton.TextSize = 16
+	Instance.new("UICorner", toggleButton).CornerRadius = UDim.new(1,0)
+	toggleButton.Parent = CoreGui
+
+	toggleButton.MouseButton1Click:Connect(function()
+		if mainGui and mainGui:FindFirstChild("Frame") then
+			mainGui.Frame.Visible = not mainGui.Frame.Visible
+		else
+			createMainGUI()
+		end
+	end)
+end
+
+createToggleButton()
+task.delay(0.5, createMainGUI)
+
+player.CharacterAdded:Connect(createOrUpdateBillboard)
+task.spawn(function()
+	if player.Character then createOrUpdateBillboard() end
+end)
+
+player.CharacterAppearanceLoaded:Connect(createOrUpdateBillboard)
