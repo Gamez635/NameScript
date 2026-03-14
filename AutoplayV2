@@ -11,7 +11,7 @@ end
 local positions = {}
 local selectedIndex
 local autoPlay = false
-local autoPlaySpeed = 0.5          -- default 0.5 detik per posisi
+local autoPlaySpeed = 0.5
 local autoAdd = false
 local autoAddSpeed = 0.7
 local testVectors = {}
@@ -39,6 +39,7 @@ frame.Visible = false
 frame.Active = true
 Instance.new("UICorner", frame).CornerRadius = UDim.new(0,10)
 
+-- Draggable
 do
     local dragging, startPos, startFrame
     frame.InputBegan:Connect(function(i)
@@ -169,7 +170,6 @@ addSpeedBtn.MouseButton1Click:Connect(function()
     autoAddSpeed = addSpeedModes[currentAddSpeedIndex].wait
 end)
 
--- Speed Control untuk Auto Play (klik untuk cycle)
 local playSpeedModes = {
     {name = "Lambat",   wait = 1.2,  color = Color3.fromRGB(100,100,140)},
     {name = "Normal",   wait = 0.5,  color = Color3.fromRGB(80,120,180)},
@@ -236,10 +236,31 @@ createButton("Copy Selected Vector", function()
     end
 end)
 
+createButton("Copy Nomor Vectors", function()
+    if selectedIndex then
+        local p = positions[selectedIndex]
+        setclipboard(string.format("%.3f, %.3f, %.3f", p.X, p.Y, p.Z))
+    end
+end)
+
+-- ── TOMbol BARU ──
+createButton("Copy All Nomor Vectors", function()
+    if #positions == 0 then return end
+    
+    local lines = {}
+    for _, pos in ipairs(positions) do
+        table.insert(lines, string.format("%.3f, %.3f, %.3f", pos.X, pos.Y, pos.Z))
+    end
+    
+    setclipboard(table.concat(lines, "\n"))
+end)
+
 createButton("Copy All Vectors", function()
     if #positions == 0 then return end
     local t = {}
-    for _,p in positions do table.insert(t, string.format("Vector3.new(%.3f, %.3f, %.3f),", p.X, p.Y, p.Z)) end
+    for _,p in positions do
+        table.insert(t, string.format("Vector3.new(%.3f, %.3f, %.3f),", p.X, p.Y, p.Z))
+    end
     setclipboard(table.concat(t, "\n"))
 end)
 
@@ -251,7 +272,7 @@ createButton("Auto Play Positions", function()
         while autoPlay do
             HRP().CFrame = CFrame.new(positions[i])
             i = (i % #positions) + 1
-            task.wait(autoPlaySpeed)   -- ← menggunakan speed yang dipilih
+            task.wait(autoPlaySpeed)
         end
     end)
 end)
