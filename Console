@@ -1,0 +1,129 @@
+local CoreGui = game:GetService("CoreGui")
+local UserInputService = game:GetService("UserInputService")
+local LogService = game:GetService("LogService")
+
+local GUI = Instance.new("ScreenGui")
+GUI.Name = "MiniGUI_HP_PC"
+GUI.ResetOnSpawn = false
+GUI.Parent = CoreGui
+
+local Main = Instance.new("Frame")
+Main.Size = UDim2.new(0, 160, 0, 70)
+Main.Position = UDim2.new(0.5, -80, 0.5, -35)
+Main.BackgroundColor3 = Color3.fromRGB(22, 22, 22)
+Main.BorderSizePixel = 0
+Main.ClipsDescendants = true
+Main.Parent = GUI
+
+Instance.new("UICorner", Main).CornerRadius = UDim.new(0, 10)
+
+local X = Instance.new("TextButton")
+X.Size = UDim2.new(0, 22, 0, 22)
+X.Position = UDim2.new(1, -26, 0, 4)
+X.BackgroundTransparency = 1
+X.Text = "X"
+X.TextColor3 = Color3.fromRGB(255, 80, 80)
+X.Font = Enum.Font.GothamBold
+X.TextSize = 18
+X.Parent = Main
+X.MouseButton1Click:Connect(function() GUI:Destroy() end)
+
+local Scroll = Instance.new("ScrollingFrame")
+Scroll.Size = UDim2.new(1, -10, 1, -35)
+Scroll.Position = UDim2.new(0, 5, 0, 30)
+Scroll.BackgroundTransparency = 1
+Scroll.ScrollBarThickness = 5
+Scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+Scroll.Parent = Main
+
+local Layout = Instance.new("UIListLayout", Scroll)
+Layout.Padding = UDim.new(0, 5)
+Layout.SortOrder = Enum.SortOrder.LayoutOrder
+
+local lastError = "Belum ada error yang tercapture."
+
+local function copyToClipboard(text)
+	setclipboard(text)
+end
+
+local copyBtn = Instance.new("TextButton")
+copyBtn.Size = UDim2.new(1, -10, 0, 32)
+copyBtn.BackgroundColor3 = Color3.fromRGB(200, 40, 40)
+copyBtn.Text = "📋 Copy Last Console Error"
+copyBtn.TextColor3 = Color3.new(1, 1, 1)
+copyBtn.Font = Enum.Font.GothamBold
+copyBtn.TextSize = 13
+Instance.new("UICorner", copyBtn).CornerRadius = UDim.new(0, 6)
+copyBtn.Parent = Scroll
+
+copyBtn.MouseButton1Click:Connect(function()
+	copyToClipboard(lastError)
+end)
+
+LogService.MessageOut:Connect(function(message, messageType)
+	if messageType == Enum.MessageType.MessageError or 
+	   messageType == Enum.MessageType.MessageWarning or 
+	   message:lower():find("error") or 
+	   message:lower():find("attempt to") or 
+	   message:lower():find("nil") then
+		lastError = message
+	end
+end)
+
+local oldPrint = print
+local oldWarn = warn
+local oldError = error
+
+getgenv().print = function(...)
+	local str = table.concat({...}, " ")
+	if str:lower():find("error") then
+		lastError = str
+	end
+	oldPrint(...)
+end
+
+getgenv().warn = function(...)
+	local str = "[WARN] " .. table.concat({...}, " ")
+	lastError = str
+	oldWarn(...)
+end
+
+getgenv().error = function(msg)
+	lastError = "[ERROR] " .. tostring(msg)
+	oldError(msg)
+end
+
+local dragStart, startPos
+
+local function startDrag()
+	dragStart = UserInputService:GetMouseLocation()
+	startPos = Main.Position
+end
+
+local function stopDrag()
+	dragStart = nil
+end
+
+Main.InputBegan:Connect(function(i)
+	if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+		startDrag()
+	end
+end)
+
+Main.InputEnded:Connect(function(i)
+	if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+		stopDrag()
+	end
+end)
+
+UserInputService.InputChanged:Connect(function(i)
+	if dragStart and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then
+		local pos = UserInputService:GetMouseLocation()
+		Main.Position = UDim2.new(
+			startPos.X.Scale,
+			startPos.X.Offset + (pos - dragStart).X,
+			startPos.Y.Scale,
+			startPos.Y.Offset + (pos - dragStart).Y
+		)
+	end
+end)
