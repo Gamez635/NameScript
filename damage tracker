@@ -1,0 +1,555 @@
+local v2 = Vector2.new
+local v3 = Vector3.new
+local rgb = Color3.fromRGB
+local sin = math.sin
+local abs = math.abs
+local floor = math.floor
+local random = math.random
+local insert = table.insert
+local remove = table.remove
+
+local rs = game:GetService("RunService")
+local plrs = game:GetService("Players")
+local uis = game:GetService("UserInputService")
+local lp = plrs.LocalPlayer
+local cam = workspace.CurrentCamera
+
+local enabled = true
+local movingmode = false
+local hudoffset = v2(0, 0)
+local dragstart = nil
+local indicators = {}
+local healthcache = {}
+local recenthits = {}
+local kills = 0
+local deaths = 0
+local dmghistory = {}
+local totaldamage = 0
+
+local gridsize = 20
+
+local lastentityscan = 0
+local lastplayerscan = 0
+local lastraycast = 0
+local lastdpsclean = 0
+local entityscanrate = 3
+local playerscannrate = 1
+local raycastrate = 0.05
+local dpscleanrate = 0.5
+
+local cacheddps = 0
+
+local raycastparams = RaycastParams.new()
+raycastparams.FilterType = Enum.RaycastFilterType.Exclude
+
+local draw = Drawing
+
+local panel = draw.new("Square")
+panel.Size = v2(220, 120)
+panel.Color = rgb(18, 18, 22)
+panel.Filled = true
+panel.Transparency = 0.25
+panel.Visible = true
+
+local accent = draw.new("Line")
+accent.Thickness = 2
+accent.Color = rgb(88, 255, 196)
+accent.Transparency = 1
+accent.Visible = true
+
+local dpsnum = draw.new("Text")
+dpsnum.Text = "0"
+dpsnum.Size = 36
+dpsnum.Color = rgb(255, 92, 92)
+dpsnum.Font = 3
+dpsnum.Outline = false
+dpsnum.Visible = true
+
+local dpslabel = draw.new("Text")
+dpslabel.Text = "dps"
+dpslabel.Size = 11
+dpslabel.Color = rgb(140, 140, 145)
+dpslabel.Font = 3
+dpslabel.Outline = false
+dpslabel.Visible = true
+
+local totalnum = draw.new("Text")
+totalnum.Text = "0"
+totalnum.Size = 20
+totalnum.Color = rgb(220, 220, 225)
+totalnum.Font = 3
+totalnum.Outline = false
+totalnum.Visible = true
+
+local totallabel = draw.new("Text")
+totallabel.Text = "total"
+totallabel.Size = 11
+totallabel.Color = rgb(140, 140, 145)
+totallabel.Font = 3
+totallabel.Outline = false
+totallabel.Visible = true
+
+local kdnum = draw.new("Text")
+kdnum.Text = "0.00"
+kdnum.Size = 20
+kdnum.Color = rgb(88, 255, 196)
+kdnum.Font = 3
+kdnum.Outline = false
+kdnum.Visible = true
+
+local kdlabel = draw.new("Text")
+kdlabel.Text = "k/d"
+kdlabel.Size = 11
+kdlabel.Color = rgb(140, 140, 145)
+kdlabel.Font = 3
+kdlabel.Outline = false
+kdlabel.Visible = true
+
+local ratiotext = draw.new("Text")
+ratiotext.Text = "0 / 0"
+ratiotext.Size = 11
+ratiotext.Color = rgb(160, 160, 165)
+ratiotext.Font = 3
+ratiotext.Outline = false
+ratiotext.Visible = true
+
+local combobg = draw.new("Square")
+combobg.Size = v2(140, 50)
+combobg.Color = rgb(22, 22, 26)
+combobg.Filled = true
+combobg.Transparency = 0.3
+combobg.Visible = false
+
+local combonum = draw.new("Text")
+combonum.Text = "0"
+combonum.Size = 28
+combonum.Color = rgb(255, 208, 92)
+combonum.Font = 3
+combonum.Outline = false
+combonum.Center = true
+combonum.Visible = false
+
+local combolabel = draw.new("Text")
+combolabel.Text = "combo"
+combolabel.Size = 11
+combolabel.Color = rgb(200, 165, 75)
+combolabel.Font = 3
+combolabel.Outline = false
+combolabel.Center = true
+combolabel.Visible = false
+
+local dragoutline = draw.new("Square")
+dragoutline.Size = v2(220, 120)
+dragoutline.Color = rgb(88, 255, 196)
+dragoutline.Filled = false
+dragoutline.Transparency = 0.8
+dragoutline.Thickness = 2
+dragoutline.Visible = false
+
+local combo = 0
+local lastcombo = 0
+
+local function snaptogrid(val)
+    return floor(val / gridsize) * gridsize
+end
+
+local function makeindicator(pos, dmg, crit)
+    local ind = {
+        pos = pos,
+        dmg = dmg,
+        time = 0,
+        max = 1.2,
+        crit = crit,
+        vel = v3(random(-2, 2), random(5, 8), random(-2, 2))
+    }
+
+    local txt = draw.new("Text")
+    txt.Text = tostring(floor(dmg))
+    txt.Size = crit and 26 or 19
+    txt.Color = crit and rgb(255, 235, 120) or rgb(255, 100, 100)
+    txt.Font = 3
+    txt.Outline = false
+    txt.Center = true
+    txt.Visible = true
+
+    ind.txt = txt
+    insert(indicators, ind)
+end
+
+local function updateindicators(dt)
+    for i = #indicators, 1, -1 do
+        local ind = indicators[i]
+        ind.time = ind.time + dt
+
+        ind.pos = ind.pos + ind.vel * dt
+        ind.vel = ind.vel + v3(0, -15 * dt, 0)
+
+        local sp, vis = cam:WorldToViewportPoint(ind.pos)
+
+        if vis then
+            ind.txt.Position = v2(sp.X, sp.Y)
+            ind.txt.Transparency = 1 - (ind.time / ind.max)
+            ind.txt.Size = (ind.crit and 26 or 19) * (1 + ind.time * 0.4)
+            ind.txt.Visible = true
+        else
+            ind.txt.Visible = false
+        end
+
+        if ind.time >= ind.max then
+            ind.txt:Remove()
+            remove(indicators, i)
+        end
+    end
+end
+
+local function getdps()
+    local total = 0
+    for i = 1, #dmghistory do
+        total = total + dmghistory[i].d
+    end
+    return total
+end
+
+local function cleandmghistory()
+    local now = tick()
+    while dmghistory[1] and (now - dmghistory[1].t > 1) do
+        remove(dmghistory, 1)
+    end
+end
+
+local function performraycast()
+    if lp.Character then
+        raycastparams.FilterDescendantsInstances = {lp.Character}
+    end
+
+    local mouse = lp:GetMouse()
+    local origin = cam.CFrame.Position
+    local mousepos = mouse.Hit.Position
+    local dir = (mousepos - origin).Unit * 1000
+
+    local result = workspace:Raycast(origin, dir, raycastparams)
+
+    if result then
+        local part = result.Instance
+        local char = part:FindFirstAncestorOfClass("Model")
+
+        if char and char ~= lp.Character then
+            local hum = char:FindFirstChildOfClass("Humanoid")
+
+            if hum and hum.Health > 0 then
+                if not char.Name:match("[Rr]agdoll") then
+                    recenthits[char] = tick()
+                    return char
+                end
+            end
+        end
+    end
+
+    return nil
+end
+
+local function setuptracking(entity)
+    if entity == lp.Character then return end
+    if healthcache[entity] then return end
+
+    local h = entity:FindFirstChildOfClass("Humanoid")
+    if not h then return end
+
+    healthcache[entity] = {last = h.Health}
+
+    h.HealthChanged:Connect(function(newhealth)
+        local cache = healthcache[entity]
+        if not cache then return end
+
+        local dmg = cache.last - newhealth
+
+        if dmg > 0 then
+            local now = tick()
+
+            if recenthits[entity] and (now - recenthits[entity]) < 0.6 then
+                local root = entity:FindFirstChild("HumanoidRootPart")
+                    or entity:FindFirstChild("Head")
+                    or entity:FindFirstChild("Torso")
+                    or entity:FindFirstChild("UpperTorso")
+
+                if root then
+                    local crit = dmg > 35
+                    makeindicator(root.Position + v3(0, 4, 0), dmg, crit)
+
+                    combo = combo + 1
+                    lastcombo = now
+                    totaldamage = totaldamage + dmg
+
+                    insert(dmghistory, {d = dmg, t = now})
+                end
+
+                if newhealth <= 0 then
+                    kills = kills + 1
+                end
+
+                recenthits[entity] = nil
+            end
+        end
+
+        cache.last = newhealth
+    end)
+end
+
+local function trackplayers()
+    for _, p in ipairs(plrs:GetPlayers()) do
+        if p ~= lp and p.Character then
+            setuptracking(p.Character)
+        end
+    end
+end
+
+local function scannpcs()
+    local playerchars = {}
+    for _, p in ipairs(plrs:GetPlayers()) do
+        if p.Character then
+            playerchars[p.Character] = true
+        end
+    end
+
+    local function checknpcs(container)
+        if not container then return end
+        for _, obj in ipairs(container:GetChildren()) do
+            if obj:IsA("Model") and not playerchars[obj] then
+                local hum = obj:FindFirstChildOfClass("Humanoid")
+                if hum and hum.Health > 0 then
+                    setuptracking(obj)
+                end
+            end
+        end
+    end
+
+    checknpcs(workspace:FindFirstChild("NPCs"))
+    checknpcs(workspace:FindFirstChild("Enemies"))
+    checknpcs(workspace:FindFirstChild("Mobs"))
+end
+
+local function updateui()
+    local ss = cam.ViewportSize
+
+    local px, py
+
+    if movingmode and dragstart then
+        local mouse = uis:GetMouseLocation()
+        px = snaptogrid(mouse.X - dragstart.X)
+        py = snaptogrid(mouse.Y - dragstart.Y)
+
+        px = math.clamp(px, 0, ss.X - 220)
+        py = math.clamp(py, 0, ss.Y - 120)
+    else
+        px = ss.X - 240 + hudoffset.X
+        py = 20 + hudoffset.Y
+    end
+
+    panel.Position = v2(px, py)
+    accent.From = v2(px, py + 35)
+    accent.To = v2(px + 220, py + 35)
+
+    dpsnum.Position = v2(px + 13, py - 1)
+    dpslabel.Position = v2(px + 12, py + 42)
+
+    totalnum.Position = v2(px + 12, py + 68)
+    totallabel.Position = v2(px + 12, py + 92)
+
+    kdnum.Position = v2(px + 125, py + 68)
+    kdlabel.Position = v2(px + 125, py + 92)
+
+    ratiotext.Position = v2(px + 125, py + 46)
+
+    if movingmode then
+        dragoutline.Position = v2(px, py)
+        dragoutline.Visible = true
+    else
+        dragoutline.Visible = false
+    end
+
+    local cx = ss.X / 2 - 70
+    local cy = 70
+
+    combobg.Position = v2(cx, cy)
+    combonum.Position = v2(cx + 70, cy + 6)
+    combolabel.Position = v2(cx + 70, cy + 32)
+end
+
+local function updatehud()
+    updateui()
+
+    if not enabled then
+        panel.Visible = false
+        accent.Visible = false
+        dpsnum.Visible = false
+        dpslabel.Visible = false
+        totalnum.Visible = false
+        totallabel.Visible = false
+        kdnum.Visible = false
+        kdlabel.Visible = false
+        ratiotext.Visible = false
+        combobg.Visible = false
+        combonum.Visible = false
+        combolabel.Visible = false
+        return
+    end
+
+    panel.Visible = true
+    accent.Visible = true
+    dpsnum.Visible = true
+    dpslabel.Visible = true
+    totalnum.Visible = true
+    totallabel.Visible = true
+    kdnum.Visible = true
+    kdlabel.Visible = true
+    ratiotext.Visible = true
+
+    dpsnum.Text = tostring(floor(cacheddps))
+    totalnum.Text = tostring(floor(totaldamage))
+
+    local kd = deaths > 0 and (kills / deaths) or kills
+    kdnum.Text = string.format("%.2f", kd)
+    kdnum.Color = kd > 2 and rgb(88, 255, 196) or kd > 1 and rgb(255, 208, 92) or rgb(255, 92, 92)
+
+    ratiotext.Text = string.format("%d / %d", kills, deaths)
+
+    if combo > 0 then
+        combobg.Visible = true
+        combonum.Visible = true
+        combolabel.Visible = true
+
+        combonum.Text = tostring(combo)
+
+        local p = abs(sin(tick() * 5))
+        combonum.Color = rgb(255, 208 + p * 47, 92)
+    else
+        combobg.Visible = false
+        combonum.Visible = false
+        combolabel.Visible = false
+    end
+end
+
+local function checkcombo()
+    if combo > 0 and tick() - lastcombo > 2.5 then
+        combo = 0
+    end
+end
+
+if lp.Character then
+    local hum = lp.Character:FindFirstChild("Humanoid")
+    if hum then
+        hum.Died:Connect(function()
+            deaths = deaths + 1
+        end)
+    end
+end
+
+lp.CharacterAdded:Connect(function(char)
+    char:WaitForChild("Humanoid").Died:Connect(function()
+        deaths = deaths + 1
+    end)
+end)
+
+plrs.PlayerAdded:Connect(function(p)
+    p.CharacterAdded:Connect(function(char)
+        task.wait(0.5)
+        setuptracking(char)
+    end)
+end)
+
+uis.InputBegan:Connect(function(inp, gp)
+    if gp then return end
+
+    if inp.KeyCode == Enum.KeyCode.F5 then
+        enabled = not enabled
+    end
+
+    if inp.KeyCode == Enum.KeyCode.F6 then
+        movingmode = not movingmode
+
+        if movingmode then
+            local mouse = uis:GetMouseLocation()
+            local ss = cam.ViewportSize
+            local currentx = ss.X - 240 + hudoffset.X
+            local currenty = 20 + hudoffset.Y
+
+            dragstart = v2(mouse.X - currentx, mouse.Y - currenty)
+        else
+            if dragstart then
+                local mouse = uis:GetMouseLocation()
+                local ss = cam.ViewportSize
+
+                local newx = snaptogrid(mouse.X - dragstart.X)
+                local newy = snaptogrid(mouse.Y - dragstart.Y)
+
+                newx = math.clamp(newx, 0, ss.X - 220)
+                newy = math.clamp(newy, 0, ss.Y - 120)
+
+                hudoffset = v2(newx - (ss.X - 240), newy - 20)
+                dragstart = nil
+            end
+        end
+    end
+end)
+
+rs.Heartbeat:Connect(function(dt)
+    local now = tick()
+    local mousedown = uis:IsMouseButtonPressed(Enum.UserInputType.MouseButton1)
+
+    if mousedown and (now - lastraycast) >= raycastrate then
+        performraycast()
+        lastraycast = now
+    end
+
+    if now - lastplayerscan >= playerscannrate then
+        trackplayers()
+        lastplayerscan = now
+    end
+
+    if now - lastentityscan >= entityscanrate then
+        scannpcs()
+        lastentityscan = now
+    end
+
+    if now - lastdpsclean >= dpscleanrate then
+        cleandmghistory()
+        cacheddps = getdps()
+        lastdpsclean = now
+    end
+
+    checkcombo()
+end)
+
+rs.RenderStepped:Connect(function(dt)
+    updateindicators(dt)
+    updatehud()
+end)
+
+task.spawn(function()
+    local playerchars = {}
+    for _, p in ipairs(plrs:GetPlayers()) do
+        if p.Character then
+            playerchars[p.Character] = true
+        end
+    end
+
+    local descendants = workspace:GetDescendants()
+    local chunk = 50
+
+    for i = 1, #descendants, chunk do
+        for j = i, math.min(i + chunk - 1, #descendants) do
+            local obj = descendants[j]
+            if obj:IsA("Model") and not playerchars[obj] then
+                local hum = obj:FindFirstChildOfClass("Humanoid")
+                if hum and hum.Health > 0 then
+                    setuptracking(obj)
+                end
+            end
+        end
+        task.wait()
+    end
+
+    lastentityscan = tick()
+end)
+
+print("click f5 to toggle f6 to move")
