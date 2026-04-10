@@ -1,0 +1,245 @@
+local config={
+    stiffness=96,
+    damping=9,
+    linearamp=Vector3.new(6.4,2.5333333,6.4),
+    angularamp=Vector3.new(0,18,0),
+    wagenabled=true,
+    wagdrop=0.2,
+    wagsway=0.4,
+    wagroll=0.5,
+    wagblendin=0.008,
+    wagblendout=0.02,
+    wagspeed=1,
+    timescale=1,
+    windenabled=false,
+    gravityenabled=false,
+    customwind=Vector3.new(0,0,0),
+    customforce=Vector3.new(0,0,0),
+    maxdistance=900,
+    maxtails=5,
+    movethreshold=15,
+    includednames={}
+}
+
+local run=game:GetService("RunService")
+local players=game:GetService("Players")
+local player=players.LocalPlayer
+local char=player.Character or player.CharacterAdded:Wait()
+local cam=workspace.CurrentCamera
+
+local sin=math.sin
+local cos=math.cos
+local min=math.min
+local max=math.max
+local insert=table.insert
+local find=table.find
+local remove=table.remove
+local sort=table.sort
+
+local timestep=1/120
+local inversetimestep=120
+
+local tails={}
+local tracked={}
+local wagtime=0
+local windtime=0
+local accum=0
+
+local winddir=Vector3.new(0,0,0)
+local windalpha=0
+local windalpha04=0
+local windalpha006=0
+local haswind=false
+
+local gravforce=Vector3.new(0,0,0)
+local linearforce=Vector3.new(0,0,0)
+local haslinear=false
+
+local function springcalc(pos,vel,stiff,damp)
+    local accel=stiff*pos+damp*vel
+    local newvel=vel-accel*timestep
+    return pos+newvel*timestep,newvel
+end
+
+local function vectoangles(v)
+    return CFrame.fromEulerAngles(v.X,v.Y,v.Z)
+end
+
+local function lerp(a,b,t)
+    return a+(b-a)*t
+end
+
+local function updatewind()
+    local windforce=config.windenabled and (workspace.GlobalWind+config.customwind) or config.customwind
+    winddir=windforce.Unit
+    windalpha=windforce.Magnitude*0.5
+    windalpha04=windalpha*0.4
+    windalpha006=windalpha*windalpha*0.06
+    haswind=windalpha>0
+end
+
+local function updatelinear()
+    linearforce=config.gravityenabled and (gravforce+config.customforce) or config.customforce
+    haslinear=linearforce.Magnitude>0
+end
+
+local function updategravity()
+    gravforce=Vector3.new(0,max((196.2-workspace.Gravity)*0.004,-1))
+    updatelinear()
+end
+
+updatewind()
+updategravity()
+workspace:GetPropertyChangedSignal("GlobalWind"):Connect(updatewind)
+workspace:GetPropertyChangedSignal("Gravity"):Connect(updategravity)
+
+local function getwagoffset(tail)
+    local blend=tail.wagblend
+    if tail.angvel.Magnitude>0.3 then blend=blend<0.01 and 0 or blend*(1-config.wagblendout) else blend=blend>0.99 and 1 or lerp(blend,1,config.wagblendin) end
+    tail.wagblend=blend
+    if blend>0 then local wt=wagtime+tail.seed local ft=wt+sin(wt)*sin(wt*0.22727272727272727)*0.9 return Vector3.new((sin(ft*2)+0.8)*config.wagdrop*blend,cos(ft)*config.wagsway*blend,sin(ft)*-config.wagroll*blend) end
+    return Vector3.new(0,0,0)
+end
+
+local function updateinterp(tail,alpha)
+    local scale=tail.invscale*tail.char:GetScale()
+    local cf=tail.prevweld:Lerp(tail.curweld,alpha)
+    if config.wagenabled then cf=cf*(cf:ToObjectSpace(tail.pivot*vectoangles(getwagoffset(tail))*tail.invpivot)):Inverse() end
+    tail.weld.C0=cf.Rotation+cf.Position*scale
+end
+
+local function updatetail(tail,doweld,alpha)
+    local rootcf=tail.root.CFrame
+    local delta=tail.prevroot:ToObjectSpace(rootcf)
+    if delta.Position.Magnitude>config.movethreshold then delta=delta.Rotation end
+    local accel=tail.prevdelta:ToObjectSpace(delta)
+    local force=accel.Position*config.linearamp
+    if haswind then local s4=sin(windtime*4) local unstable=sin(windtime*2*s4)*windalpha04 local stable=sin(windtime*2)*s4 force=force-rootcf:VectorToObjectSpace(winddir*windalpha006*(1+(stable+unstable)*0.4)) end
+    if haslinear then force=force-rootcf:VectorToObjectSpace(linearforce) end
+    local pivot=tail.pivot
+    local disp=pivot.Position-tail.prevweld.Position
+    local torque=disp:Cross(force)
+    local x,y,z=accel:ToEulerAnglesXYZ()
+    local angaccel=Vector3.new(x,y,z)*config.angularamp
+    local newangle,newangvel=springcalc(tail.angle,tail.angvel,config.stiffness,config.damping)
+    tail.angle=newangle
+    local scale=tail.invscale*tail.char:GetScale()
+    tail.angvel=newangvel+torque/scale-angaccel
+    local anglecf=vectoangles(newangle)
+    local newcur=pivot*anglecf*tail.invpivot
+    local newprev=tail.curweld
+    if doweld then
+        local cf=newprev:Lerp(newcur,alpha)
+        if config.wagenabled then cf=cf*(cf:ToObjectSpace(pivot*vectoangles(getwagoffset(tail))*tail.invpivot)):Inverse() end
+        tail.weld.C0=cf.Rotation+cf.Position*scale
+    end
+    tail.prevroot=rootcf
+    tail.prevdelta=delta
+    tail.prevweld=newprev
+    tail.curweld=newcur
+end
+
+local function getpivot(root)
+    local waistrig=root:FindFirstChild("WaistRigAttachment")
+    if waistrig then return waistrig.CFrame*CFrame.new(0,0,root.Size.Z*0.5) end
+    local waistback=root:FindFirstChild("WaistBackAttachment")
+    if waistback then return waistback.CFrame*CFrame.new(0,0.3,0) end
+    return nil
+end
+
+local function nametoseed(name)
+    local seed=0
+    for i=1,#name do seed=seed+string.byte(name,i)^2 end
+    return seed
+end
+
+local function setupweld(character,weld,tailpart,custompivot)
+    local flipped=false
+    local root=weld.Part0
+    if not root then return end
+    if root==tailpart then root=weld.Part1 if not root then return end flipped=true end
+    local pivot
+    if custompivot then pivot=typeof(custompivot)=="CFrame" and custompivot or custompivot.CFrame else pivot=getpivot(root) end
+    if not pivot then return end
+    local origcf
+    if flipped then origcf=weld.C1*weld.C0:Inverse() weld.Part0,weld.Part1=root,tailpart else origcf=weld.C0*weld.C1:Inverse() end
+    weld.C0=origcf
+    weld.C1=CFrame.identity
+    pivot=origcf:ToObjectSpace(CFrame.new(pivot.Position))
+    local seed=nametoseed(character.Name)
+    local plr=players:GetPlayerFromCharacter(character)
+    if plr then seed=seed+plr.UserId end
+    local tail={root=root,prevroot=root.CFrame,prevdelta=CFrame.identity,weld=weld,origcf=origcf,prevweld=origcf,curweld=origcf,angle=Vector3.new(0,0,0),angvel=Vector3.new(0,0,0),wagblend=0,seed=seed,pivot=origcf*pivot,invpivot=pivot:Inverse(),char=character,invscale=1/character:GetScale(),dist=0,rendering=false}
+    insert(tails,tail)
+    weld.AncestryChanged:Connect(function() if not weld.Parent then local idx=find(tails,tail) if idx then remove(tails,idx) end end end)
+end
+
+local function setupaccessory(character,accessory)
+    local handle=accessory:FindFirstChild("Handle")
+    if not handle then accessory.ChildAdded:Once(function() setupaccessory(character,accessory) end) return end
+    local weld=handle:FindFirstChild("AccessoryWeld")
+    if weld then setupweld(character,weld,handle) end
+end
+
+local function istail(accessory)
+    local acctype=accessory.AccessoryType
+    local accname=accessory.Name:lower()
+    if acctype==Enum.AccessoryType.Back or acctype==Enum.AccessoryType.Waist then
+        if accname:find("tail",1,true) then return true end
+        if #config.includednames>0 then for _,name in ipairs(config.includednames) do if accessory.Name==name then return true end end end
+    end
+    return false
+end
+
+local function setupchar(character)
+    if tracked[character] then return end
+    tracked[character]=true
+    character.ChildAdded:Connect(function(child) if child:IsA("Accessory") and istail(child) then setupaccessory(character,child) end end)
+    for _,child in ipairs(character:GetChildren()) do if child:IsA("Accessory") and istail(child) then setupaccessory(character,child) end end
+    character:GetPropertyChangedSignal("Parent"):Connect(function() if not character.Parent then tracked[character]=nil end end)
+end
+
+setupchar(char)
+player.CharacterAdded:Connect(function(c) 
+    char=c 
+    tails={}
+    tracked={}
+    wagtime=0
+    windtime=0
+    accum=0
+    task.wait(0.5)
+    setupchar(c) 
+end)
+
+local function sortbydist(a,b) return a.dist<b.dist end
+
+run.PreRender:Connect(function(dt)
+    dt=min(dt,0.1)*config.timescale
+    wagtime=wagtime+dt*config.wagspeed
+    windtime=windtime+dt
+    accum=accum+dt
+    local steps=0
+    while accum>=timestep do accum=accum-timestep steps=steps+1 end
+    local campos=cam.CFrame.Position
+    local rendering={}
+    for _,tail in ipairs(tails) do
+        local dist=(tail.root.CFrame.Position-campos).Magnitude
+        if dist<=config.maxdistance then tail.dist=dist insert(rendering,tail)
+        elseif tail.rendering then tail.rendering=false local scale=tail.invscale*tail.char:GetScale() tail.weld.C0=tail.origcf.Rotation+tail.origcf.Position*scale end
+    end
+    sort(rendering,sortbydist)
+    local interp=steps==0
+    local alpha=accum*inversetimestep
+    local updated=0
+    for _,tail in ipairs(rendering) do
+        if updated>=config.maxtails then if tail.rendering then tail.rendering=false local scale=tail.invscale*tail.char:GetScale() tail.weld.C0=tail.origcf.Rotation+tail.origcf.Position*scale end
+        else
+            if interp then if not tail.rendering then continue end updateinterp(tail,alpha)
+            else
+                if not tail.rendering then tail.prevroot=tail.root.CFrame tail.prevdelta=CFrame.identity tail.prevweld=tail.origcf tail.curweld=tail.origcf tail.angle=Vector3.new(0,0,0) tail.angvel=Vector3.new(0,0,0) tail.wagblend=0 tail.rendering=true end
+                for i=1,steps do updatetail(tail,steps==i,alpha) end
+            end
+            updated=updated+1
+        end
+    end
+end)
