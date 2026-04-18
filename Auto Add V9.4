@@ -1,0 +1,312 @@
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local CoreGui = game:GetService("CoreGui")
+local lp = Players.LocalPlayer
+
+local function randomString(length)
+    length = length or 8
+    local chars = "abcdefghijklmnopqrstuvwxyz"
+    local result = ""
+    for i = 1, length do
+        result = result .. chars:sub(math.random(1, #chars), math.random(1, #chars))
+    end
+    return result
+end
+
+local sg = Instance.new("ScreenGui")
+sg.ResetOnSpawn = false
+sg.Parent = CoreGui
+
+local mainBtn = Instance.new("TextButton")
+mainBtn.Size = UDim2.new(0, 80, 0, 80)
+mainBtn.Position = UDim2.new(0, 20, 0.5, -40)
+mainBtn.Text = "V23"
+mainBtn.Font = Enum.Font.GothamBlack
+mainBtn.TextSize = 36
+mainBtn.TextColor3 = Color3.new(1, 1, 1)
+mainBtn.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
+mainBtn.Draggable = true
+mainBtn.Parent = sg
+Instance.new("UICorner", mainBtn).CornerRadius = UDim.new(1, 0)
+
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0, 340, 0, 520)
+frame.Position = UDim2.new(0.5, -170, 0.5, -260)
+frame.BackgroundColor3 = Color3.fromRGB(15, 15, 35)
+frame.Visible = false
+frame.Parent = sg
+Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 16)
+
+mainBtn.MouseButton1Click:Connect(function()
+    frame.Visible = not frame.Visible
+    mainBtn.Text = frame.Visible and "X" or "V23"
+end)
+
+local title = Instance.new("TextLabel", frame)
+title.Size = UDim2.new(1, -20, 0, 40)
+title.Position = UDim2.new(0, 10, 0, 8)
+title.Text = "V23 Smooth Cam + Coil Fixed (NO SLIDE + NO ANEH ROTASI)"
+title.TextColor3 = Color3.new(1, 1, 1)
+title.Font = Enum.Font.GothamBold
+title.TextSize = 16
+title.BackgroundTransparency = 1
+
+local status = Instance.new("TextLabel", frame)
+status.Size = UDim2.new(1, -20, 0, 26)
+status.Position = UDim2.new(0, 10, 0, 48)
+status.Text = "Frames: 0"
+status.TextColor3 = Color3.fromRGB(100, 220, 255)
+status.Font = Enum.Font.GothamSemibold
+status.TextSize = 15
+status.BackgroundTransparency = 1
+
+local modeLabel = Instance.new("TextLabel", frame)
+modeLabel.Size = UDim2.new(0.5, -15, 0, 30)
+modeLabel.Position = UDim2.new(0, 10, 0, 80)
+modeLabel.Text = "Playback Mode:"
+modeLabel.TextColor3 = Color3.new(1,1,1)
+modeLabel.Font = Enum.Font.GothamSemibold
+modeLabel.TextSize = 14
+modeLabel.BackgroundTransparency = 1
+modeLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+local modeBtn = Instance.new("TextButton", frame)
+modeBtn.Size = UDim2.new(0.5, -15, 0, 30)
+modeBtn.Position = UDim2.new(0.5, 5, 0, 80)
+modeBtn.Text = "Once"
+modeBtn.Font = Enum.Font.GothamBold
+modeBtn.TextSize = 16
+modeBtn.BackgroundColor3 = Color3.fromRGB(80, 80, 200)
+modeBtn.TextColor3 = Color3.new(1,1,1)
+Instance.new("UICorner", modeBtn).CornerRadius = UDim.new(0,8)
+
+local progressLabel = Instance.new("TextLabel", frame)
+progressLabel.Size = UDim2.new(1, -20, 0, 24)
+progressLabel.Position = UDim2.new(0, 10, 0, 120)
+progressLabel.Text = "Progress: Ready"
+progressLabel.TextColor3 = Color3.fromRGB(200, 200, 255)
+progressLabel.Font = Enum.Font.Gotham
+progressLabel.TextSize = 14
+progressLabel.BackgroundTransparency = 1
+
+local scroll = Instance.new("ScrollingFrame", frame)
+scroll.Size = UDim2.new(1, -20, 1, -190)
+scroll.Position = UDim2.new(0, 10, 0, 150)
+scroll.ScrollBarThickness = 5
+scroll.BackgroundTransparency = 1
+
+local layout = Instance.new("UIListLayout", scroll)
+layout.Padding = UDim.new(0, 8)
+layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+    scroll.CanvasSize = UDim2.new(0, 0, 0, layout.AbsoluteContentSize.Y + 20)
+end)
+
+local frames = {}
+local isRecording = false
+local playbackMode = "Once"
+
+local function createBtn(text, col, cb)
+    local b = Instance.new("TextButton")
+    b.Size = UDim2.new(1, -10, 0, 42)
+    b.BackgroundColor3 = col
+    b.Text = text
+    b.Font = Enum.Font.GothamBold
+    b.TextSize = 15
+    b.TextColor3 = Color3.new(1, 1, 1)
+    b.Parent = scroll
+    Instance.new("UICorner", b).CornerRadius = UDim.new(0, 10)
+    b.MouseButton1Click:Connect(function()
+        task.spawn(function()
+            pcall(cb, b)
+        end)
+    end)
+end
+
+local function formatCFrame(cf)
+    if not cf then return "CFrame.new(0,0,0)" end
+    local x,y,z,r00,r01,r02,r10,r11,r12,r20,r21,r22 = cf:components()
+    return string.format("CFrame.new(%.3f,%.3f,%.3f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f)",
+        x or 0, y or 0, z or 0, r00 or 1, r01 or 0, r02 or 0,
+        r10 or 0, r11 or 0, r12 or 1, r20 or 0, r21 or 0, r22 or 0)
+end
+
+local function smoothCFrame(a, b, alpha)
+    local pos = a.Position:Lerp(b.Position, alpha)
+    local look = a.LookVector:Lerp(b.LookVector, alpha).Unit
+    local up = a.UpVector:Lerp(b.UpVector, alpha).Unit
+    local right = look:Cross(up).Unit
+    up = right:Cross(look).Unit
+    return CFrame.fromMatrix(pos, right, up)
+end
+
+createBtn("Record: OFF", Color3.fromRGB(220, 50, 50), function(b)
+    isRecording = not isRecording
+    b.Text = isRecording and "Record: ON" or "Record: OFF"
+    b.BackgroundColor3 = isRecording and Color3.fromRGB(50, 220, 80) or Color3.fromRGB(220, 50, 50)
+end)
+
+modeBtn.MouseButton1Click:Connect(function()
+    playbackMode = (playbackMode == "Once") and "Loop" or "Once"
+    modeBtn.Text = playbackMode
+    modeBtn.BackgroundColor3 = (playbackMode == "Loop") and Color3.fromRGB(0, 170, 100) or Color3.fromRGB(80, 80, 200)
+end)
+
+createBtn("Clear All", Color3.fromRGB(180, 60, 60), function()
+    frames = {}
+    status.Text = "Frames: 0"
+    progressLabel.Text = "Progress: Ready"
+end)
+
+createBtn("Export Combined (FINAL FIX - No Slide + Flat Rotasi)", Color3.fromRGB(100, 255, 100), function(b)
+    if #frames < 30 then
+        b.Text = "Too few frames!"
+        task.wait(1.5)
+        b.Text = "Export Combined (FINAL FIX - No Slide + Flat Rotasi)"
+        return
+    end
+
+    b.Text = "Building... (" .. #frames .. "f)"
+    progressLabel.Text = "Progress: 0%"
+
+    task.spawn(function()
+        local codeParts = {}
+        table.insert(codeParts, [[
+local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
+local lp = Players.LocalPlayer
+local cam = workspace.CurrentCamera
+local char = lp.Character or lp.CharacterAdded:Wait()
+local hrp = char:WaitForChild("HumanoidRootPart")
+local hum = char:WaitForChild("Humanoid")
+
+local originalCamType = cam.CameraType
+local originalAutoRotate = hum.AutoRotate
+local originalWalkSpeed = hum.WalkSpeed
+local originalHipHeight = hum.HipHeight
+local originalPlatformStand = hum.PlatformStand
+
+hum.AutoRotate = false
+cam.CameraType = Enum.CameraType.Scriptable
+hum.PlatformStand = true   -- FIX KAKI MELUNCUR
+
+local frames = {
+]])
+
+        local total = #frames
+        for i, f in ipairs(frames) do
+            local entry = string.format(
+                "{Pos=Vector3.new(%.3f,%.3f,%.3f),CFrame=%s,hrpCFrame=%s,FOV=%.2f,Time=%.4f,WalkSpeed=%.2f}%s\n",
+                f.Pos.X, f.Pos.Y, f.Pos.Z,
+                formatCFrame(f.CFrame),
+                formatCFrame(f.hrpCFrame),
+                f.FOV or 70,
+                f.Time,
+                f.WalkSpeed or 16,
+                i < total and "," or ""
+            )
+            table.insert(codeParts, entry)
+            if i % 200 == 0 then
+                progressLabel.Text = "Progress: " .. math.floor((i / total) * 100) .. "%"
+                task.wait()
+            end
+        end
+
+        table.insert(codeParts, [[
+}
+
+local mode = "]] .. playbackMode .. [["
+local t = 0
+local idx = 1
+local lastTime = frames[#frames].Time
+local connection
+
+local function smoothCFrame(a, b, alpha)
+    local pos = a.Position:Lerp(b.Position, alpha)
+    local look = a.LookVector:Lerp(b.LookVector, alpha).Unit
+    local up = a.UpVector:Lerp(b.UpVector, alpha).Unit
+    local right = look:Cross(up).Unit
+    up = right:Cross(look).Unit
+    return CFrame.fromMatrix(pos, right, up)
+end
+
+connection = RunService.RenderStepped:Connect(function(dt)
+    t = t + dt
+    if mode == "Once" and t > lastTime then
+        cam.CameraType = originalCamType
+        hum.AutoRotate = originalAutoRotate
+        hum.WalkSpeed = originalWalkSpeed
+        hum.HipHeight = originalHipHeight
+        hum.PlatformStand = originalPlatformStand
+        connection:Disconnect()
+        return
+    elseif mode == "Loop" then
+        t = t % lastTime
+    end
+
+    while idx < #frames and t >= frames[idx + 1].Time do idx = idx + 1 end
+    if idx >= #frames then idx = 1 end
+
+    local a = frames[idx]
+    local b = frames[idx + 1] or frames[1]
+    local alpha = math.clamp((t - a.Time) / (b.Time - a.Time), 0, 1)
+
+    local camCf = smoothCFrame(a.CFrame, b.CFrame, alpha)
+    local charPos = a.Pos:Lerp(b.Pos, alpha)
+
+    -- FIX ROTASI ANEH: pakai flat rotation saja (hanya yaw)
+    local recordedCf = a.hrpCFrame:Lerp(b.hrpCFrame, alpha)
+    local flatLook = Vector3.new(recordedCf.LookVector.X, 0, recordedCf.LookVector.Z)
+    if flatLook.Magnitude > 0.01 then flatLook = flatLook.Unit end
+
+    cam.CFrame = camCf
+    cam.FieldOfView = a.FOV + (b.FOV - a.FOV) * alpha
+
+    hrp.CFrame = CFrame.lookAt(charPos, charPos + flatLook * 10)
+    hum.WalkSpeed = a.WalkSpeed
+end)
+]])
+
+        local fullCode = table.concat(codeParts)
+        local rand = randomString(10)
+        local filename = (playbackMode == "Once" and "v23_final_once_" or "v23_final_loop_") .. rand .. ".lua"
+
+        if writefile then
+            writefile(filename, fullCode)
+            b.Text = "Exported! (" .. #frames .. "f - FIXED)"
+            progressLabel.Text = "Saved as " .. filename
+        else
+            b.Text = "writefile not supported"
+        end
+
+        task.wait(3)
+        b.Text = "Export Combined (FINAL FIX - No Slide + Flat Rotasi)"
+        progressLabel.Text = "Progress: Ready"
+    end)
+end)
+
+-- RECORDER (simpan data yang dibutuhkan saja)
+local lt = tick()
+RunService.Heartbeat:Connect(function()
+    if not isRecording then return end
+    local char = lp.Character
+    if not char then return end
+    local hum = char:FindFirstChild("Humanoid")
+    local root = char:FindFirstChild("HumanoidRootPart")
+    local cam = workspace.CurrentCamera
+    if not (hum and root and cam) then return end
+
+    local now = tick()
+    local dt = now - lt
+    if dt < 0.001 then return end
+    lt = now
+
+    table.insert(frames, {
+        Pos = root.Position,
+        CFrame = cam.CFrame,
+        hrpCFrame = root.CFrame,
+        FOV = cam.FieldOfView,
+        Time = (#frames == 0 and 0 or frames[#frames].Time + dt),
+        WalkSpeed = hum.WalkSpeed
+    })
+    status.Text = "Frames: " .. #frames
+end)
