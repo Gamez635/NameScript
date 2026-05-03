@@ -1,0 +1,165 @@
+local Players=game:GetService("Players")
+local UIS=game:GetService("UserInputService")
+local RunService=game:GetService("RunService")
+
+local player=Players.LocalPlayer
+
+local flying=false
+local noclip=false
+local speed=50
+local move=Vector3.zero
+local up=false
+local down=false
+
+local bv,bg
+local hidden=false
+
+local function char()
+    return player.Character or player.CharacterAdded:Wait()
+end
+
+local function root()
+    return char():WaitForChild("HumanoidRootPart")
+end
+
+local function hum()
+    return char():WaitForChild("Humanoid")
+end
+
+local function startFly()
+    if flying then return end
+    flying=true
+    local r=root()
+    hum().PlatformStand=true
+
+    bv=Instance.new("BodyVelocity")
+    bv.MaxForce=Vector3.new(1e9,1e9,1e9)
+    bv.Velocity=Vector3.zero
+    bv.Parent=r
+
+    bg=Instance.new("BodyGyro")
+    bg.MaxTorque=Vector3.new(1e9,1e9,1e9)
+    bg.CFrame=r.CFrame
+    bg.Parent=r
+end
+
+local function stopFly()
+    flying=false
+    hum().PlatformStand=false
+    if bv then bv:Destroy() bv=nil end
+    if bg then bg:Destroy() bg=nil end
+end
+
+local gui=Instance.new("ScreenGui")
+gui.Parent=player:WaitForChild("PlayerGui")
+
+local function createBtn(txt,pos)
+    local b=Instance.new("TextButton")
+    b.Size=UDim2.new(0,60,0,60)
+    b.Position=pos
+    b.Text=txt
+    b.BackgroundTransparency=0.3
+    b.Parent=gui
+    return b
+end
+
+local W=createBtn("W",UDim2.new(0,100,1,-220))
+local A=createBtn("A",UDim2.new(0,40,1,-160))
+local S=createBtn("S",UDim2.new(0,100,1,-160))
+local D=createBtn("D",UDim2.new(0,160,1,-160))
+local SPACE=createBtn("↑",UDim2.new(1,-120,1,-220))
+local CTRL=createBtn("↓",UDim2.new(1,-120,1,-160))
+local RBTN=createBtn("R",UDim2.new(1,-60,1,-300))
+local TBTN=createBtn("T",UDim2.new(1,-60,1,-240))
+local YBTN=createBtn("Y",UDim2.new(1,-60,1,-180))
+
+local box=Instance.new("TextBox")
+box.Size=UDim2.new(0,120,0,40)
+box.Position=UDim2.new(1,-140,1,-360)
+box.Text=tostring(speed)
+box.PlaceholderText="Speed"
+box.Parent=gui
+
+box.FocusLost:Connect(function()
+    local v=tonumber(box.Text)
+    if v then speed=v end
+end)
+
+local function setVisible(state)
+    for _,v in pairs(gui:GetChildren()) do
+        if v~=YBTN then
+            v.Visible=state
+        end
+    end
+end
+
+local function bind(btn,vec,mode)
+    btn.InputBegan:Connect(function(i)
+        if i.UserInputType==Enum.UserInputType.Touch or i.UserInputType==Enum.UserInputType.MouseButton1 then
+            if mode=="up" then up=true
+            elseif mode=="down" then down=true
+            elseif mode=="toggleFly" then
+                if flying then stopFly() else startFly() end
+            elseif mode=="toggleNoclip" then
+                noclip=not noclip
+            elseif mode=="toggleUI" then
+                hidden=not hidden
+                setVisible(not hidden)
+            else
+                move+=vec
+            end
+        end
+    end)
+
+    btn.InputEnded:Connect(function(i)
+        if i.UserInputType==Enum.UserInputType.Touch or i.UserInputType==Enum.UserInputType.MouseButton1 then
+            if mode=="up" then up=false
+            elseif mode=="down" then down=false
+            elseif not mode then
+                move-=vec
+            end
+        end
+    end)
+end
+
+bind(W,Vector3.new(0,0,-1))
+bind(S,Vector3.new(0,0,1))
+bind(A,Vector3.new(-1,0,0))
+bind(D,Vector3.new(1,0,0))
+bind(SPACE,nil,"up")
+bind(CTRL,nil,"down")
+bind(RBTN,nil,"toggleFly")
+bind(TBTN,nil,"toggleNoclip")
+bind(YBTN,nil,"toggleUI")
+
+RunService.Heartbeat:Connect(function()
+    if flying then
+        local cam=workspace.CurrentCamera
+        local dir=Vector3.zero
+
+        if move.Magnitude>0 then
+            dir=cam.CFrame:VectorToWorldSpace(move)
+        end
+
+        if up then dir+=Vector3.new(0,1,0) end
+        if down then dir+=Vector3.new(0,-1,0) end
+
+        if dir.Magnitude>0 then
+            bv.Velocity=dir.Unit*speed
+        else
+            bv.Velocity=Vector3.zero
+        end
+
+        bg.CFrame=cam.CFrame
+    end
+end)
+
+RunService.Stepped:Connect(function()
+    if noclip then
+        for _,v in pairs(char():GetDescendants()) do
+            if v:IsA("BasePart") then
+                v.CanCollide=false
+            end
+        end
+    end
+end)
