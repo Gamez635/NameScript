@@ -1,0 +1,158 @@
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local CoreGui = game:GetService("CoreGui")
+local Workspace = game:GetService("Workspace")
+
+local LocalPlayer = Players.LocalPlayer
+
+local gui = Instance.new("ScreenGui")
+gui.Name = "AutoBlockGUI"
+gui.Parent = CoreGui
+gui.ResetOnSpawn = false
+
+local openCloseBtn = Instance.new("TextButton")
+openCloseBtn.Size = UDim2.new(0, 35, 0, 35)
+openCloseBtn.Position = UDim2.new(1, -50, 0, 20)
+openCloseBtn.Text = "🛡️"
+openCloseBtn.BackgroundColor3 = Color3.fromRGB(80, 20, 140)
+openCloseBtn.TextColor3 = Color3.new(1, 1, 1)
+openCloseBtn.Font = Enum.Font.GothamBold
+openCloseBtn.TextSize = 18
+openCloseBtn.Parent = gui
+Instance.new("UICorner", openCloseBtn).CornerRadius = UDim.new(0, 10)
+
+local main = Instance.new("Frame")
+main.Size = UDim2.new(0, 140, 0, 120)
+main.Position = UDim2.new(0.5, -70, 0.5, -60)
+main.BackgroundColor3 = Color3.fromRGB(50, 0, 100)
+main.BorderSizePixel = 0
+main.Parent = gui
+
+Instance.new("UICorner", main).CornerRadius = UDim.new(0, 10)
+
+local stroke = Instance.new("UIStroke", main)
+stroke.Color = Color3.fromRGB(200, 200, 200)
+stroke.Thickness = 1.5
+
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, 0, 0, 25)
+title.BackgroundTransparency = 1
+title.Text = "AUTO BLOCK"
+title.TextColor3 = Color3.fromRGB(255, 180, 0)
+title.Font = Enum.Font.GothamBold
+title.TextSize = 12
+title.Parent = main
+
+local autoBlockBtn = Instance.new("TextButton")
+autoBlockBtn.Size = UDim2.new(0.85, 0, 0, 35)
+autoBlockBtn.Position = UDim2.new(0.075, 0, 0.45, 0)
+autoBlockBtn.Text = "Auto Block: Off"
+autoBlockBtn.BackgroundColor3 = Color3.fromRGB(80, 20, 140)
+autoBlockBtn.TextColor3 = Color3.new(1, 1, 1)
+autoBlockBtn.Font = Enum.Font.GothamBold
+autoBlockBtn.TextSize = 11
+autoBlockBtn.Parent = main
+Instance.new("UICorner", autoBlockBtn).CornerRadius = UDim.new(0, 8)
+
+local isAutoBlock = false
+local autoBlockConnection
+local autoBlockPlatform
+
+local function makeDraggable(frame)
+    local dragging, dragInput, dragStart, startPos
+    frame.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            dragStart = input.Position
+            startPos = frame.Position
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then dragging = false end
+            end)
+        end
+    end)
+    frame.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+            dragInput = input
+        end
+    end)
+    game:GetService("UserInputService").InputChanged:Connect(function(input)
+        if input == dragInput and dragging then
+            local delta = input.Position - dragStart
+            frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        end
+    end)
+end
+
+makeDraggable(main)
+
+local function enableAutoBlock()
+    if autoBlockConnection then return end
+    autoBlockConnection = RunService.Heartbeat:Connect(function()
+        if not isAutoBlock then return end
+        local char = LocalPlayer.Character
+        if not char then return end
+        local root = char:FindFirstChild("HumanoidRootPart")
+        local humanoid = char:FindFirstChildOfClass("Humanoid")
+        if not root or not humanoid then return end
+
+        if root.Velocity.Y > -8 then
+            if autoBlockPlatform then autoBlockPlatform:Destroy() autoBlockPlatform = nil end
+            return
+        end
+
+        local feetPosition = root.Position - Vector3.new(0, humanoid.HipHeight, 0)
+        local rayParams = RaycastParams.new()
+        rayParams.FilterDescendantsInstances = {char}
+        rayParams.FilterType = Enum.RaycastFilterType.Exclude
+        rayParams.IgnoreWater = true
+
+        local ray = Workspace:Raycast(feetPosition, Vector3.new(0, -100000, 0), rayParams)
+        if ray and ray.Distance < 18 then
+            if autoBlockPlatform then autoBlockPlatform:Destroy() autoBlockPlatform = nil end
+            return
+        end
+
+        local platformPos = feetPosition - Vector3.new(0, 1.5, 0)
+        if not autoBlockPlatform or not autoBlockPlatform.Parent then
+            autoBlockPlatform = Instance.new("Part")
+            autoBlockPlatform.Size = Vector3.new(8, 2, 8)
+            autoBlockPlatform.Anchored = true
+            autoBlockPlatform.CanCollide = true
+            autoBlockPlatform.Transparency = 0.3
+            autoBlockPlatform.Color = Color3.fromRGB(80, 20, 140)
+            autoBlockPlatform.Material = Enum.Material.Neon
+            autoBlockPlatform.Parent = Workspace
+        end
+        autoBlockPlatform.CFrame = CFrame.new(platformPos)
+    end)
+end
+
+local function disableAutoBlock()
+    if autoBlockConnection then
+        autoBlockConnection:Disconnect()
+        autoBlockConnection = nil
+    end
+    if autoBlockPlatform then
+        autoBlockPlatform:Destroy()
+        autoBlockPlatform = nil
+    end
+end
+
+autoBlockBtn.MouseButton1Click:Connect(function()
+    isAutoBlock = not isAutoBlock
+    autoBlockBtn.Text = isAutoBlock and "Auto Block: On" or "Auto Block: Off"
+    if isAutoBlock then
+        enableAutoBlock()
+    else
+        disableAutoBlock()
+    end
+end)
+
+local isOpen = true
+openCloseBtn.MouseButton1Click:Connect(function()
+    isOpen = not isOpen
+    main.Visible = isOpen
+    openCloseBtn.Text = isOpen and "🛡️" or "◻️"
+end)
+
+LocalPlayer.CharacterRemoving:Connect(disableAutoBlock)
