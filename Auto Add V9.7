@@ -1,0 +1,358 @@
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local CoreGui = game:GetService("CoreGui")
+local lp = Players.LocalPlayer
+
+local function randomString(length)
+    length = length or 8
+    local chars = "abcdefghijklmnopqrstuvwxyz0123456789"
+    local result = ""
+    for i = 1, length do
+        result = result .. chars:sub(math.random(1, #chars), math.random(1, #chars))
+    end
+    return result
+end
+
+local sg = Instance.new("ScreenGui")
+sg.ResetOnSpawn = false
+sg.IgnoreGuiInset = true
+sg.Parent = CoreGui
+
+local mainBtn = Instance.new("TextButton")
+mainBtn.Size = UDim2.new(0, 80, 0, 80)
+mainBtn.Position = UDim2.new(0, 20, 0.5, -40)
+mainBtn.Text = "V23"
+mainBtn.Font = Enum.Font.GothamBlack
+mainBtn.TextSize = 36
+mainBtn.TextColor3 = Color3.new(1, 1, 1)
+mainBtn.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
+mainBtn.Draggable = true
+mainBtn.Parent = sg
+Instance.new("UICorner", mainBtn).CornerRadius = UDim.new(1, 0)
+
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0, 360, 0, 540)
+frame.Position = UDim2.new(0.5, -180, 0.5, -270)
+frame.BackgroundColor3 = Color3.fromRGB(15, 15, 35)
+frame.Visible = false
+frame.Parent = sg
+Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 16)
+
+mainBtn.MouseButton1Click:Connect(function()
+    frame.Visible = not frame.Visible
+    mainBtn.Text = frame.Visible and "X" or "V23"
+end)
+
+local title = Instance.new("TextLabel", frame)
+title.Size = UDim2.new(1, -20, 0, 40)
+title.Position = UDim2.new(0, 10, 0, 8)
+title.Text = "V23 Smooth Cam + Pure Teleport"
+title.TextColor3 = Color3.new(1, 1, 1)
+title.Font = Enum.Font.GothamBold
+title.TextSize = 16
+title.BackgroundTransparency = 1
+
+local status = Instance.new("TextLabel", frame)
+status.Size = UDim2.new(1, -20, 0, 30)
+status.Position = UDim2.new(0, 10, 0, 50)
+status.Text = "Frames: 0"
+status.TextColor3 = Color3.fromRGB(100, 220, 255)
+status.Font = Enum.Font.GothamSemibold
+status.TextSize = 15
+status.BackgroundTransparency = 1
+
+local frames = {}
+local isRecording = false
+local playbackMode = "Once"
+
+local function formatCFrame(cf)
+    if not cf then return "CFrame.new(0,0,0)" end
+    local x,y,z,r00,r01,r02,r10,r11,r12,r20,r21,r22 = cf:components()
+    return string.format("CFrame.new(%.3f,%.3f,%.3f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f)", x,y,z,r00,r01,r02,r10,r11,r12,r20,r21,r22)
+end
+
+local recordBtn = Instance.new("TextButton", frame)
+recordBtn.Size = UDim2.new(1, -20, 0, 50)
+recordBtn.Position = UDim2.new(0, 10, 0, 90)
+recordBtn.Text = "Record: OFF"
+recordBtn.BackgroundColor3 = Color3.fromRGB(220, 50, 50)
+recordBtn.TextColor3 = Color3.new(1,1,1)
+recordBtn.Font = Enum.Font.GothamBold
+recordBtn.TextSize = 18
+Instance.new("UICorner", recordBtn).CornerRadius = UDim.new(0,10)
+
+recordBtn.MouseButton1Click:Connect(function()
+    isRecording = not isRecording
+    recordBtn.Text = isRecording and "Record: ON" or "Record: OFF"
+    recordBtn.BackgroundColor3 = isRecording and Color3.fromRGB(50, 220, 80) or Color3.fromRGB(220, 50, 50)
+end)
+
+local modeBtn = Instance.new("TextButton", frame)
+modeBtn.Size = UDim2.new(1, -20, 0, 40)
+modeBtn.Position = UDim2.new(0, 10, 0, 150)
+modeBtn.Text = "Mode: Once"
+modeBtn.BackgroundColor3 = Color3.fromRGB(80, 80, 200)
+modeBtn.TextColor3 = Color3.new(1,1,1)
+modeBtn.Font = Enum.Font.GothamBold
+modeBtn.TextSize = 16
+Instance.new("UICorner", modeBtn).CornerRadius = UDim.new(0,8)
+
+modeBtn.MouseButton1Click:Connect(function()
+    playbackMode = (playbackMode == "Once") and "Loop" or "Once"
+    modeBtn.Text = "Mode: " .. playbackMode
+    modeBtn.BackgroundColor3 = (playbackMode == "Loop") and Color3.fromRGB(0, 170, 100) or Color3.fromRGB(80, 80, 200)
+end)
+
+local clearBtn = Instance.new("TextButton", frame)
+clearBtn.Size = UDim2.new(1, -20, 0, 40)
+clearBtn.Position = UDim2.new(0, 10, 0, 200)
+clearBtn.Text = "Clear All"
+clearBtn.BackgroundColor3 = Color3.fromRGB(180, 60, 60)
+clearBtn.TextColor3 = Color3.new(1,1,1)
+clearBtn.Font = Enum.Font.GothamBold
+Instance.new("UICorner", clearBtn).CornerRadius = UDim.new(0,8)
+
+clearBtn.MouseButton1Click:Connect(function()
+    frames = {}
+    status.Text = "Frames: 0"
+end)
+
+local lastTime = tick()
+RunService.Heartbeat:Connect(function()
+    if not isRecording then return end
+    local char = lp.Character
+    if not char then return end
+    local hum = char:FindFirstChild("Humanoid")
+    local root = char:FindFirstChild("HumanoidRootPart")
+    local cam = workspace.CurrentCamera
+    if not (hum and root and cam) then return end
+
+    local now = tick()  
+    local dt = now - lastTime  
+    if dt < 0.008 then return end  
+    lastTime = now  
+
+    table.insert(frames, {  
+        Pos = root.Position,  
+        Vel = root.AssemblyLinearVelocity,  
+        Move = hum.MoveDirection,  
+        CFrame = cam.CFrame,  
+        hrpCFrame = root.CFrame,  
+        FOV = cam.FieldOfView,  
+        Time = (#frames == 0 and 0 or frames[#frames].Time + dt),  
+        WalkSpeed = hum.WalkSpeed  
+    })  
+    status.Text = "Frames: " .. #frames
+end)
+
+local exportBtn = Instance.new("TextButton", frame)
+exportBtn.Size = UDim2.new(1, -20, 0, 55)
+exportBtn.Position = UDim2.new(0, 10, 0, 260)
+exportBtn.Text = "Export Replay (Pure Teleport)"
+exportBtn.BackgroundColor3 = Color3.fromRGB(100, 255, 100)
+exportBtn.TextColor3 = Color3.new(1,1,1)
+exportBtn.Font = Enum.Font.GothamBold
+exportBtn.TextSize = 17
+Instance.new("UICorner", exportBtn).CornerRadius = UDim.new(0,10)
+
+-- ================== PURE TELEPORT EXPORT ==================
+exportBtn.MouseButton1Click:Connect(function()
+    if #frames < 20 then
+        exportBtn.Text = "Minimal 20 frames!"
+        task.wait(1.5)
+        exportBtn.Text = "Export Replay (Pure Teleport)"
+        return
+    end
+
+    exportBtn.Text = "Exporting Pure Teleport..."  
+
+    task.spawn(function()  
+        local codeParts = {[[
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local CoreGui = game:GetService("CoreGui")
+local lp = Players.LocalPlayer
+
+local sg = Instance.new("ScreenGui")
+sg.ResetOnSpawn = false
+sg.IgnoreGuiInset = true
+sg.Parent = CoreGui
+
+-- BLACK SCREEN
+local blackScreen = Instance.new("Frame")
+blackScreen.Name = "BlackScreen"
+blackScreen.Size = UDim2.new(1, 0, 1, 0)
+blackScreen.Position = UDim2.new(0, 0, 0, 0)
+blackScreen.BackgroundColor3 = Color3.new(0, 0, 0)
+blackScreen.BackgroundTransparency = 0
+blackScreen.BorderSizePixel = 0
+blackScreen.ZIndex = 10000
+blackScreen.Visible = false
+blackScreen.Parent = sg
+
+-- SYSTEM RUNNING
+local systemText = Instance.new("TextLabel")
+systemText.Name = "SystemText"
+systemText.Size = UDim2.new(0.9, 0, 0.2, 0)
+systemText.Position = UDim2.new(0.05, 0, 0.32, 0)
+systemText.BackgroundTransparency = 1
+systemText.Text = "SYSTEM RUNNING"
+systemText.TextColor3 = Color3.fromRGB(0, 255, 100)
+systemText.Font = Enum.Font.GothamBold
+systemText.TextSize = 52
+systemText.TextStrokeTransparency = 0
+systemText.TextStrokeColor3 = Color3.new(0,0,0)
+systemText.TextScaled = true
+systemText.ZIndex = 10001
+systemText.Parent = blackScreen
+
+-- TIMER
+local timerLabel = Instance.new("TextLabel")
+timerLabel.Name = "TimerLabel"
+timerLabel.Size = UDim2.new(0.95, 0, 0.1, 0)
+timerLabel.Position = UDim2.new(0.025, 0, 0.55, 0)
+timerLabel.BackgroundTransparency = 1
+timerLabel.Text = "00:00 / 00:00"
+timerLabel.TextColor3 = Color3.fromRGB(100, 255, 255)
+timerLabel.Font = Enum.Font.GothamSemibold
+timerLabel.TextSize = 32
+timerLabel.TextStrokeTransparency = 0.6
+timerLabel.TextStrokeColor3 = Color3.new(0,0,0)
+timerLabel.TextScaled = true
+timerLabel.ZIndex = 10001
+timerLabel.Parent = blackScreen
+
+local cam = workspace.CurrentCamera
+local char = lp.Character or lp.CharacterAdded:Wait()
+local hrp = char:WaitForChild("HumanoidRootPart")
+local hum = char:WaitForChild("Humanoid")
+
+local originalCamType = cam.CameraType
+local originalAutoRotate = hum.AutoRotate
+
+hum.AutoRotate = false
+cam.CameraType = Enum.CameraType.Scriptable
+
+local frames = {]]
+
+        for i, f in ipairs(frames) do  
+            local entry = string.format("{Pos=Vector3.new(%.3f,%.3f,%.3f),Vel=Vector3.new(%.3f,%.3f,%.3f),Move=Vector3.new(%.3f,0,%.3f),CFrame=%s,hrpCFrame=%s,FOV=%.2f,Time=%.4f,WalkSpeed=%.2f}%s\n",  
+                f.Pos.X, f.Pos.Y, f.Pos.Z, f.Vel.X, f.Vel.Y, f.Vel.Z, f.Move.X, f.Move.Z, 
+                formatCFrame(f.CFrame), formatCFrame(f.hrpCFrame), f.FOV or 70, f.Time, f.WalkSpeed or 16, 
+                i < #frames and "," or "")  
+            table.insert(codeParts, entry)  
+        end  
+
+        table.insert(codeParts, [[}
+
+local mode = "]] .. playbackMode .. [["
+local t = 0
+local idx = 1
+local isPlaying = true
+local totalTime = frames[#frames].Time
+local startTime = tick()
+
+local function formatTime(seconds)
+    local min = math.floor(seconds / 60)
+    local sec = math.floor(seconds % 60)
+    return string.format("%02d:%02d", min, sec)
+end
+
+local function smoothCFrame(a, b, alpha)
+    local pos = a.Position:Lerp(b.Position, alpha)
+    local look = a.LookVector:Lerp(b.LookVector, alpha).Unit
+    local up = a.UpVector:Lerp(b.UpVector, alpha).Unit
+    local right = look:Cross(up).Unit
+    up = right:Cross(look).Unit
+    return CFrame.fromMatrix(pos, right, up)
+end
+
+local conn
+conn = RunService.Stepped:Connect(function(dt)
+    if not isPlaying then return end
+    
+    t = t + dt
+    local elapsed = tick() - startTime
+
+    local remaining = math.max(0, totalTime - t)
+    timerLabel.Text = formatTime(elapsed) .. " / " .. formatTime(totalTime) .. "   |   Rem: " .. formatTime(remaining)
+
+    if mode == "Once" and t >= totalTime then
+        blackScreen.Visible = true
+        cam.CameraType = originalCamType
+        hum.AutoRotate = originalAutoRotate
+        isPlaying = false
+        timerLabel.Text = "REPLAY FINISHED"
+        conn:Disconnect()
+        return
+    end
+
+    if mode == "Loop" then
+        t = t % totalTime
+    end
+
+    while idx < #frames and t >= frames[idx + 1].Time do
+        idx = idx + 1
+    end
+
+    if idx >= #frames then
+        if mode == "Once" then
+            blackScreen.Visible = true
+            cam.CameraType = originalCamType
+            hum.AutoRotate = originalAutoRotate
+            isPlaying = false
+            timerLabel.Text = "REPLAY FINISHED"
+            conn:Disconnect()
+            return
+        else
+            idx = 1
+            t = 0
+        end
+    end
+
+    local a = frames[idx]
+    local b = frames[idx + 1] or frames[1]
+    local timeDiff = b.Time - a.Time
+
+    if timeDiff > 0.1 then
+        local pauseProgress = (t - a.Time) / timeDiff
+        if pauseProgress < 1 then
+            blackScreen.Visible = true
+            return
+        else
+            blackScreen.Visible = false
+        end
+    else
+        blackScreen.Visible = false
+    end
+
+    local alpha = timeDiff > 0 and math.clamp((t - a.Time) / timeDiff, 0, 1) or 0
+
+    -- CAMERA (Smooth)
+    cam.CFrame = smoothCFrame(a.CFrame, b.CFrame, alpha)
+    cam.FieldOfView = a.FOV + (b.FOV - a.FOV) * alpha
+
+    -- PURE TELEPORT CHARACTER
+    hrp.CFrame = a.hrpCFrame
+    hrp.AssemblyLinearVelocity = a.Vel
+    hrp.AssemblyAngularVelocity = Vector3.new(0,0,0)
+    
+    hum.WalkSpeed = a.WalkSpeed or 16
+    hum:Move(a.Move, true)
+end)
+]])
+
+        local fullCode = table.concat(codeParts)  
+        local filename = "V23_PureTeleport_" .. randomString(8) .. ".lua"  
+
+        if writefile then  
+            writefile(filename, fullCode)  
+            exportBtn.Text = "✅ Exported Pure Teleport!"
+        else  
+            exportBtn.Text = "writefile not supported"  
+        end  
+
+        task.wait(2)  
+        exportBtn.Text = "Export Replay (Pure Teleport)"
+    end)
+end)
