@@ -1,0 +1,382 @@
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UIS = game:GetService("UserInputService")
+
+local Player = Players.LocalPlayer
+local function HRP()
+    local c = Player.Character or Player.CharacterAdded:Wait()
+    return c:WaitForChild("HumanoidRootPart")
+end
+
+local positions = {}
+local selectedIndex
+local autoPlay = false
+local autoPlaySpeed = 0.5
+local autoAdd = false
+local autoAddSpeed = 0.7
+local testVectors = {}
+local testPlay = false
+
+local gui = Instance.new("ScreenGui")
+gui.ResetOnSpawn = false
+gui.Parent = Player.PlayerGui
+
+local openBtn = Instance.new("TextButton", gui)
+openBtn.Size = UDim2.fromOffset(60,24)
+openBtn.Position = UDim2.fromOffset(10,10)
+openBtn.Text = "POS"
+openBtn.TextScaled = true
+openBtn.BackgroundColor3 = Color3.fromRGB(40,120,40)
+openBtn.TextColor3 = Color3.new(1,1,1)
+Instance.new("UICorner", openBtn).CornerRadius = UDim.new(0,6)
+
+local frame = Instance.new("Frame", gui)
+frame.Size = UDim2.fromOffset(350,400)
+frame.Position = UDim2.fromScale(0.5, 0.5)
+frame.AnchorPoint = Vector2.new(0.5, 0.5)
+frame.BackgroundColor3 = Color3.fromRGB(28,28,32)
+frame.Visible = false
+frame.Active = true
+Instance.new("UICorner", frame).CornerRadius = UDim.new(0,10)
+
+do
+    local dragging, startPos, startFrame
+    frame.InputBegan:Connect(function(i)
+        if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            startPos = i.Position
+            startFrame = frame.Position
+        end
+    end)
+    frame.InputEnded:Connect(function(i)
+        if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+            dragging = false
+        end
+    end)
+    UIS.InputChanged:Connect(function(i)
+        if dragging then
+            local d = i.Position - startPos
+            frame.Position = UDim2.new(startFrame.X.Scale, startFrame.X.Offset + d.X, startFrame.Y.Scale, startFrame.Y.Offset + d.Y)
+        end
+    end)
+end
+
+local closeBtn = Instance.new("TextButton", frame)
+closeBtn.Size = UDim2.fromOffset(60,24)
+closeBtn.Position = UDim2.new(1,-70,0,8)
+closeBtn.Text = "X"
+closeBtn.TextScaled = true
+closeBtn.BackgroundColor3 = Color3.fromRGB(180,60,60)
+closeBtn.TextColor3 = Color3.new(1,1,1)
+Instance.new("UICorner", closeBtn).CornerRadius = UDim.new(0,6)
+
+openBtn.MouseButton1Click:Connect(function() frame.Visible = not frame.Visible end)
+closeBtn.MouseButton1Click:Connect(function() frame.Visible = false end)
+
+local title = Instance.new("TextLabel", frame)
+title.Size = UDim2.new(1,0,0,30)
+title.Position = UDim2.fromOffset(0,8)
+title.BackgroundTransparency = 1
+title.Text = "Position Manager"
+title.TextColor3 = Color3.new(1,1,1)
+title.TextScaled = true
+title.Font = Enum.Font.GothamBold
+
+local mainScroll = Instance.new("ScrollingFrame", frame)
+mainScroll.Size = UDim2.new(1,-20,1,-50)
+mainScroll.Position = UDim2.fromOffset(10,40)
+mainScroll.BackgroundTransparency = 1
+mainScroll.ScrollBarThickness = 5
+mainScroll.ScrollBarImageColor3 = Color3.fromRGB(80,80,90)
+
+local mainLayout = Instance.new("UIListLayout", mainScroll)
+mainLayout.Padding = UDim.new(0,6)
+mainLayout.SortOrder = Enum.SortOrder.LayoutOrder
+mainLayout.FillDirection = Enum.FillDirection.Vertical
+
+local listFrame = Instance.new("Frame", mainScroll)
+listFrame.Size = UDim2.new(1,0,0,150)
+listFrame.BackgroundTransparency = 1
+
+local list = Instance.new("ScrollingFrame", listFrame)
+list.Size = UDim2.new(1,0,1,0)
+list.BackgroundTransparency = 1
+list.ScrollBarThickness = 4
+
+local listLayout = Instance.new("UIListLayout", list)
+listLayout.Padding = UDim.new(0,4)
+listLayout.SortOrder = Enum.SortOrder.LayoutOrder
+
+listLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+    list.CanvasSize = UDim2.new(0,0,0,listLayout.AbsoluteContentSize.Y + 8)
+end)
+
+local function refresh()
+    for _,v in list:GetChildren() do if v:IsA("Frame") then v:Destroy() end end
+    for i, data in ipairs(positions) do
+        local itemFrame = Instance.new("Frame", list)
+        itemFrame.Size = UDim2.new(1,0,0,40)
+        itemFrame.BackgroundColor3 = (i == selectedIndex) and Color3.fromRGB(60,140,80) or Color3.fromRGB(45,45,50)
+        itemFrame.BackgroundTransparency = 0
+        Instance.new("UICorner", itemFrame).CornerRadius = UDim.new(0,6)
+        
+        local nameBox = Instance.new("TextBox", itemFrame)
+        nameBox.Size = UDim2.new(1,0,1,-4)
+        nameBox.Position = UDim2.fromOffset(4,2)
+        nameBox.BackgroundColor3 = Color3.fromRGB(35,35,40)
+        nameBox.TextColor3 = Color3.new(1,1,1)
+        nameBox.Text = data.name or "Pos " .. i
+        nameBox.TextScaled = true
+        nameBox.Font = Enum.Font.GothamBold
+        nameBox.ClearTextOnFocus = false
+        Instance.new("UICorner", nameBox).CornerRadius = UDim.new(0,4)
+        
+        nameBox.FocusLost:Connect(function(enterPressed)
+            if enterPressed then
+                positions[i].name = nameBox.Text
+                refresh()
+            end
+        end)
+        
+        itemFrame.InputBegan:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 then
+                selectedIndex = i
+                refresh()
+                HRP().CFrame = CFrame.new(data.pos)
+            end
+        end)
+    end
+end
+
+local function createButton(text, callback)
+    local b = Instance.new("TextButton", mainScroll)
+    b.Size = UDim2.new(1,0,0,34)
+    b.BackgroundColor3 = Color3.fromRGB(50,50,55)
+    b.TextColor3 = Color3.new(1,1,1)
+    b.Text = text
+    b.TextScaled = true
+    b.Font = Enum.Font.GothamSemibold
+    Instance.new("UICorner", b).CornerRadius = UDim.new(0,8)
+    if callback then b.MouseButton1Click:Connect(callback) end
+    return b
+end
+
+local addSpeedModes = {
+    {name = "Sekali", wait = 999, color = Color3.fromRGB(90,90,95)},
+    {name = "Cepat", wait = 0.35, color = Color3.fromRGB(65,140,65)},
+    {name = "Sangat Cepat", wait = 0.12, color = Color3.fromRGB(40,160,80)},
+    {name = "Super Cepat", wait = 0.03, color = Color3.fromRGB(20,200,60)}
+}
+local currentAddSpeedIndex = 2
+
+local addSpeedBtn = Instance.new("TextButton", mainScroll)
+addSpeedBtn.Size = UDim2.new(1,0,0,34)
+addSpeedBtn.BackgroundColor3 = addSpeedModes[currentAddSpeedIndex].color
+addSpeedBtn.TextColor3 = Color3.new(1,1,1)
+addSpeedBtn.Text = "Add Speed: " .. addSpeedModes[currentAddSpeedIndex].name
+addSpeedBtn.TextScaled = true
+addSpeedBtn.Font = Enum.Font.GothamSemibold
+Instance.new("UICorner", addSpeedBtn).CornerRadius = UDim.new(0,8)
+addSpeedBtn.MouseButton1Click:Connect(function()
+    currentAddSpeedIndex = (currentAddSpeedIndex % #addSpeedModes) + 1
+    addSpeedBtn.Text = "Add Speed: " .. addSpeedModes[currentAddSpeedIndex].name
+    addSpeedBtn.BackgroundColor3 = addSpeedModes[currentAddSpeedIndex].color
+    autoAddSpeed = addSpeedModes[currentAddSpeedIndex].wait
+end)
+
+local playSpeedModes = {
+    {name = "Lambat",   wait = 1.2,  color = Color3.fromRGB(100,100,140)},
+    {name = "Normal",   wait = 0.5,  color = Color3.fromRGB(80,120,180)},
+    {name = "Cepat",    wait = 0.25, color = Color3.fromRGB(60,140,220)},
+    {name = "Sangat Cepat", wait = 0.08, color = Color3.fromRGB(40,180,255)}
+}
+local currentPlaySpeedIndex = 2
+
+local playSpeedBtn = Instance.new("TextButton", mainScroll)
+playSpeedBtn.Size = UDim2.new(1,0,0,34)
+playSpeedBtn.BackgroundColor3 = playSpeedModes[currentPlaySpeedIndex].color
+playSpeedBtn.TextColor3 = Color3.new(1,1,1)
+playSpeedBtn.Text = "Play Speed: " .. playSpeedModes[currentPlaySpeedIndex].name
+playSpeedBtn.TextScaled = true
+playSpeedBtn.Font = Enum.Font.GothamSemibold
+Instance.new("UICorner", playSpeedBtn).CornerRadius = UDim.new(0,8)
+playSpeedBtn.MouseButton1Click:Connect(function()
+    currentPlaySpeedIndex = (currentPlaySpeedIndex % #playSpeedModes) + 1
+    playSpeedBtn.Text = "Play Speed: " .. playSpeedModes[currentPlaySpeedIndex].name
+    playSpeedBtn.BackgroundColor3 = playSpeedModes[currentPlaySpeedIndex].color
+    autoPlaySpeed = playSpeedModes[currentPlaySpeedIndex].wait
+end)
+
+local autoAddBtn = createButton("Auto Add OFF")
+autoAddBtn.MouseButton1Click:Connect(function()
+    autoAdd = not autoAdd
+    autoAddBtn.Text = "Auto Add " .. (autoAdd and "ON" or "OFF")
+    autoAddBtn.BackgroundColor3 = autoAdd and Color3.fromRGB(40,140,80) or Color3.fromRGB(50,50,55)
+    if autoAdd then
+        task.spawn(function()
+            local counter = 1
+            while autoAdd do
+                table.insert(positions, {
+                    name = "Pos_" .. counter,
+                    pos = HRP().Position
+                })
+                counter = counter + 1
+                refresh()
+                if autoAddSpeed >= 999 then break end
+                task.wait(autoAddSpeed)
+            end
+        end)
+    end
+end)
+
+createButton("Add Current Position", function()
+    local name = "Pos_" .. (#positions + 1)
+    table.insert(positions, {
+        name = name,
+        pos = HRP().Position
+    })
+    refresh()
+end)
+
+createButton("Edit Selected Name", function()
+    if selectedIndex then
+        local newName = ""
+        local inputBox = Instance.new("TextBox", frame)
+        inputBox.Size = UDim2.new(0.8,0,0,30)
+        inputBox.Position = UDim2.new(0.1,0,0.5,-15)
+        inputBox.BackgroundColor3 = Color3.fromRGB(40,40,45)
+        inputBox.TextColor3 = Color3.new(1,1,1)
+        inputBox.Text = positions[selectedIndex].name or "Pos " .. selectedIndex
+        inputBox.PlaceholderText = "Masukkan nama baru..."
+        inputBox.TextScaled = true
+        inputBox.Font = Enum.Font.Gotham
+        inputBox.ClearTextOnFocus = false
+        inputBox.ZIndex = 10
+        Instance.new("UICorner", inputBox).CornerRadius = UDim.new(0,6)
+        
+        inputBox.FocusLost:Connect(function(enterPressed)
+            if enterPressed and inputBox.Text ~= "" then
+                positions[selectedIndex].name = inputBox.Text
+                refresh()
+            end
+            inputBox:Destroy()
+        end)
+        
+        inputBox:CaptureFocus()
+    end
+end)
+
+createButton("Remove Selected", function()
+    if selectedIndex then 
+        table.remove(positions, selectedIndex) 
+        selectedIndex = nil 
+        refresh() 
+    end
+end)
+
+createButton("Clear All Positions", function()
+    positions = {}
+    selectedIndex = nil
+    refresh()
+end)
+
+createButton("Copy Selected With Name", function()
+    if selectedIndex then
+        local data = positions[selectedIndex]
+        local name = data.name or "Pos_" .. selectedIndex
+        local cleanName = name:gsub("[^%w_]", "_")
+        local vec = data.pos
+        setclipboard(string.format('%s = Vector3.new(%.3f, %.3f, %.3f),', cleanName, vec.X, vec.Y, vec.Z))
+    end
+end)
+
+createButton("Copy All With Names", function()
+    if #positions == 0 then return end
+    
+    local lines = {}
+    for i, data in ipairs(positions) do
+        local name = data.name or "Pos_" .. i
+        local cleanName = name:gsub("[^%w_]", "_")
+        local vec = data.pos
+        table.insert(lines, string.format('%s = Vector3.new(%.3f, %.3f, %.3f),', cleanName, vec.X, vec.Y, vec.Z))
+    end
+    
+    setclipboard(table.concat(lines, "\n"))
+end)
+
+createButton("Copy Selected Vector", function()
+    if selectedIndex then
+        local p = positions[selectedIndex].pos
+        setclipboard(string.format("Vector3.new(%.3f, %.3f, %.3f)", p.X, p.Y, p.Z))
+    end
+end)
+
+createButton("Copy All Vectors", function()
+    if #positions == 0 then return end
+    local t = {}
+    for _,data in positions do
+        local p = data.pos
+        table.insert(t, string.format("Vector3.new(%.3f, %.3f, %.3f),", p.X, p.Y, p.Z))
+    end
+    setclipboard(table.concat(t, "\n"))
+end)
+
+createButton("Auto Play Positions", function()
+    if autoPlay or #positions == 0 then return end
+    autoPlay = true
+    task.spawn(function()
+        local i = 1
+        while autoPlay do
+            HRP().CFrame = CFrame.new(positions[i].pos)
+            i = (i % #positions) + 1
+            task.wait(autoPlaySpeed)
+        end
+    end)
+end)
+
+local inputFrame = Instance.new("Frame", mainScroll)
+inputFrame.Size = UDim2.new(1,0,0,34)
+inputFrame.BackgroundTransparency = 1
+
+local input = Instance.new("TextBox", inputFrame)
+input.Size = UDim2.new(1,0,1,0)
+input.BackgroundColor3 = Color3.fromRGB(38,38,42)
+input.TextColor3 = Color3.new(1,1,1)
+input.PlaceholderText = "Paste Vector3.new(...) here"
+input.Text = ""
+input.TextScaled = true
+input.ClearTextOnFocus = false
+input.Font = Enum.Font.Gotham
+Instance.new("UICorner", input).CornerRadius = UDim.new(0,8)
+
+createButton("Test Vector List", function()
+    testVectors = {}
+    for x,y,z in input.Text:gmatch("Vector3%.new%(([^,]+),([^,]+),([^%)]+)%)") do
+        local vx,vy,vz = tonumber(x),tonumber(y),tonumber(z)
+        if vx and vy and vz then table.insert(testVectors, Vector3.new(vx,vy,vz)) end
+    end
+    if #testVectors == 0 then return end
+    testPlay = true
+    task.spawn(function()
+        local i = 1
+        while testPlay do
+            HRP().CFrame = CFrame.new(testVectors[i])
+            i = (i % #testVectors) + 1
+            RunService.Heartbeat:Wait()
+        end
+    end)
+end)
+
+createButton("Stop All Actions", function()
+    autoPlay = false
+    testPlay = false
+    autoAdd = false
+    autoAddBtn.Text = "Auto Add OFF"
+    autoAddBtn.BackgroundColor3 = Color3.fromRGB(50,50,55)
+end)
+
+mainLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+    mainScroll.CanvasSize = UDim2.new(0,0,0,mainLayout.AbsoluteContentSize.Y + 20)
+end)
+
+refresh()
